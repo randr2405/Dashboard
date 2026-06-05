@@ -4,7 +4,7 @@ import {
   doc, onSnapshot, serverTimestamp
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { Plus, X, Printer } from "lucide-react";
+import { Plus, X, Printer, Download } from "lucide-react";
 
 const DIVISIONS = [
   { value: "print", label: "Print / DTF / Vinyl" },
@@ -12,8 +12,39 @@ const DIVISIONS = [
   { value: "clothing", label: "Clothing Brand" },
 ];
 
-const emptyEmp = { name: "", role: "", division: "print", email: "", phone: "", startDate: "", salary: "", idNumber: "", address: "" };
-const emptySlip = { employeeId: "", period: "", basicSalary: "", overtime: "", bonus: "", taxRate: "25", uif: "1", otherDed: "", otherDedLabel: "" };
+// Suggested hourly rates per role (ZAR) — editable by user in the form
+const ROLE_RATE_SUGGESTIONS = {
+  "Screen Printer": 45,
+  "DTF Operator": 50,
+  "Vinyl Cutter": 40,
+  "Production Manager": 80,
+  "Designer": 75,
+  "Driver / Delivery": 35,
+  "IT Technician": 120,
+  "Developer": 200,
+  "Sales Rep": 60,
+  "Admin": 50,
+  "Seamstress": 38,
+  "Cutter": 35,
+  "Quality Control": 45,
+};
+
+const PAY_TYPES = [
+  { value: "monthly", label: "Monthly Salary" },
+  { value: "hourly", label: "Hourly Rate" },
+];
+
+const emptyEmp = {
+  name: "", role: "", division: "print", email: "", phone: "",
+  startDate: "", payType: "monthly", salary: "", hourlyRate: "",
+  idNumber: "", address: ""
+};
+
+const emptySlip = {
+  employeeId: "", period: "", basicSalary: "", hoursWorked: "",
+  overtime: "", overtimeHours: "", bonus: "",
+  taxRate: "25", uif: "1", otherDed: "", otherDedLabel: ""
+};
 
 const inp = {
   width: "100%", background: "#111", border: "1px solid #333",
@@ -26,10 +57,12 @@ const lbl = {
   textTransform: "uppercase", letterSpacing: 1, marginBottom: 5
 };
 
-function printPayslip(record, taxRate, uifRate) {
+// ─── Payslip HTML template (shared by print & download) ──────────────────────
+function buildPayslipHTML(record, taxRate, uifRate) {
   const divLabel = DIVISIONS.find(d => d.value === record.division)?.label || record.division;
-  const win = window.open("", "_blank");
-  win.document.write(`<!DOCTYPE html><html><head><title>Payslip — ${record.employeeName}</title>
+  const isHourly = record.payType === "hourly";
+
+  return `<!DOCTYPE html><html><head><title>Payslip — ${record.employeeName}</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -53,12 +86,15 @@ function printPayslip(record, taxRate, uifRate) {
     .net-row .net-label{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
     .net-row .net-val{color:#fff;font-size:26px;font-weight:700;font-family:'DM Serif Display',serif}
     .footer{padding:20px 36px;background:#F7F6F2;border-top:1px solid #E8E5DF;font-size:11px;color:#A8A29E;text-align:center}
-    .print-btn{display:block;margin:24px auto 0;padding:10px 28px;background:#1B6B4A;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif}
-    @media print{body{padding:0;background:#fff}.wrap{box-shadow:none;border-radius:0}.print-btn{display:none}}
+    .action-btns{display:flex;gap:12px;justify-content:center;margin:24px auto 0}
+    .action-btn{padding:10px 28px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600}
+    .btn-print{background:#1B6B4A;color:#fff}
+    .btn-download{background:#C9A84C;color:#1C1917}
+    @media print{body{padding:0;background:#fff}.wrap{box-shadow:none;border-radius:0}.action-btns{display:none}}
   </style></head><body>
   <div class="wrap">
     <div class="header">
-      <h1>R&R Agencies</h1>
+      <h1>R&amp;R Agencies</h1>
       <p>Payslip · ${divLabel}</p>
     </div>
     <div class="body">
@@ -67,12 +103,18 @@ function printPayslip(record, taxRate, uifRate) {
         <div class="emp-field"><label>Job Title</label><span>${record.role || "—"}</span></div>
         <div class="emp-field"><label>Division</label><span>${divLabel}</span></div>
         <div class="emp-field"><label>Pay Period</label><span>${record.period}</span></div>
+        <div class="emp-field"><label>Pay Type</label><span>${isHourly ? "Hourly" : "Monthly"}</span></div>
+        ${isHourly ? `<div class="emp-field"><label>Hours Worked</label><span>${record.hoursWorked || "—"} hrs</span></div>` : ""}
       </div>
 
       <div class="section-title">Earnings</div>
       <table>
-        <tr><td>Basic Salary</td><td>R ${record.basic.toFixed(2)}</td></tr>
-        ${record.overtime > 0 ? `<tr><td>Overtime</td><td>R ${record.overtime.toFixed(2)}</td></tr>` : ""}
+        ${isHourly
+          ? `<tr><td>Hourly Rate</td><td>R ${(record.hourlyRate || 0).toFixed(2)} / hr</td></tr>
+             <tr><td>Regular Hours (${record.hoursWorked || 0} hrs)</td><td>R ${record.basic.toFixed(2)}</td></tr>`
+          : `<tr><td>Basic Salary</td><td>R ${record.basic.toFixed(2)}</td></tr>`
+        }
+        ${record.overtime > 0 ? `<tr><td>Overtime${isHourly && record.overtimeHours ? ` (${record.overtimeHours} hrs × 1.5×)` : ""}</td><td>R ${record.overtime.toFixed(2)}</td></tr>` : ""}
         ${record.bonus > 0 ? `<tr><td>Bonus / Commission</td><td>R ${record.bonus.toFixed(2)}</td></tr>` : ""}
         <tr class="gross-row"><td>Gross Pay</td><td>R ${record.gross.toFixed(2)}</td></tr>
       </table>
@@ -91,14 +133,41 @@ function printPayslip(record, taxRate, uifRate) {
       </div>
     </div>
     <div class="footer">
-      This payslip was generated by R&R Agencies Admin Dashboard · ${new Date().toLocaleDateString("en-ZA")}
+      This payslip was generated by R&amp;R Agencies Admin Dashboard · ${new Date().toLocaleDateString("en-ZA")}
     </div>
   </div>
-  <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
-  </body></html>`);
+  <div class="action-btns">
+    <button class="action-btn btn-print" onclick="window.print()">🖨 Print</button>
+    <button class="action-btn btn-download" onclick="downloadPDF()">⬇ Download PDF</button>
+  </div>
+  <script>
+    function downloadPDF() {
+      window.print();
+    }
+  </script>
+  </body></html>`;
+}
+
+function printPayslip(record) {
+  const win = window.open("", "_blank");
+  win.document.write(buildPayslipHTML(record, record.taxRate, record.uifRate));
   win.document.close();
 }
 
+function downloadPayslip(record) {
+  const html = buildPayslipHTML(record, record.taxRate, record.uifRate);
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Payslip_${record.employeeName.replace(/\s+/g, "_")}_${record.period.replace(/\s+/g, "_")}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function HR() {
   const [tab, setTab] = useState("employees");
   const [employees, setEmployees] = useState([]);
@@ -118,8 +187,25 @@ export default function HR() {
     return () => { u1(); u2(); };
   }, []);
 
-  const basic = parseFloat(slipForm.basicSalary) || 0;
-  const overtime = parseFloat(slipForm.overtime) || 0;
+  // ── Selected employee for payslip form ──
+  const selectedEmp = employees.find(e => e.id === slipForm.employeeId);
+  const isHourly = selectedEmp?.payType === "hourly";
+
+  // ── Live payslip calculations ──
+  const hourlyRate = parseFloat(selectedEmp?.hourlyRate) || 0;
+  const hoursWorked = parseFloat(slipForm.hoursWorked) || 0;
+  const overtimeHours = parseFloat(slipForm.overtimeHours) || 0;
+
+  // Basic: monthly salary OR hours × rate
+  const basic = isHourly
+    ? hoursWorked * hourlyRate
+    : (parseFloat(slipForm.basicSalary) || 0);
+
+  // Overtime: for hourly it's overtimeHours × rate × 1.5; for monthly it's a flat amount
+  const overtime = isHourly
+    ? overtimeHours * hourlyRate * 1.5
+    : (parseFloat(slipForm.overtime) || 0);
+
   const bonus = parseFloat(slipForm.bonus) || 0;
   const gross = basic + overtime + bonus;
   const tax = gross * ((parseFloat(slipForm.taxRate) || 0) / 100);
@@ -128,8 +214,23 @@ export default function HR() {
   const totalDed = tax + uif + otherDed;
   const net = gross - totalDed;
 
+  // ── When employee changes, auto-fill salary / rate ──
+  function handleEmployeeSelect(empId) {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) { setSlipForm(f => ({ ...f, employeeId: empId })); return; }
+    setSlipForm(f => ({
+      ...f,
+      employeeId: empId,
+      basicSalary: emp.payType === "monthly" ? (emp.salary || "") : "",
+      hoursWorked: "",
+      overtimeHours: "",
+    }));
+  }
+
   async function saveEmployee() {
     if (!empForm.name) return alert("Name is required.");
+    if (empForm.payType === "monthly" && !empForm.salary) return alert("Monthly salary is required.");
+    if (empForm.payType === "hourly" && !empForm.hourlyRate) return alert("Hourly rate is required.");
     setSaving(true);
     await addDoc(collection(db, "employees"), { ...empForm, createdAt: serverTimestamp() });
     setSaving(false);
@@ -143,15 +244,18 @@ export default function HR() {
   }
 
   async function savePayslip() {
-    const emp = employees.find(e => e.id === slipForm.employeeId);
-    if (!emp) return alert("Select an employee.");
+    if (!selectedEmp) return alert("Select an employee.");
     if (!slipForm.period) return alert("Pay period is required.");
     setSaving(true);
     await addDoc(collection(db, "payroll"), {
       employeeId: slipForm.employeeId,
-      employeeName: emp.name,
-      role: emp.role,
-      division: emp.division,
+      employeeName: selectedEmp.name,
+      role: selectedEmp.role,
+      division: selectedEmp.division,
+      payType: selectedEmp.payType || "monthly",
+      hourlyRate: selectedEmp.payType === "hourly" ? hourlyRate : null,
+      hoursWorked: isHourly ? hoursWorked : null,
+      overtimeHours: isHourly ? overtimeHours : null,
       period: slipForm.period,
       basic, overtime, bonus, gross,
       tax, uif, otherDed,
@@ -169,6 +273,16 @@ export default function HR() {
   async function deletePayslip(id) {
     if (!confirm("Delete this payslip record?")) return;
     await deleteDoc(doc(db, "payroll", id));
+  }
+
+  // ── When role changes in employee form, suggest a rate ──
+  function handleRoleChange(role) {
+    const suggested = ROLE_RATE_SUGGESTIONS[role];
+    setEmpForm(f => ({
+      ...f,
+      role,
+      hourlyRate: suggested && f.payType === "hourly" ? String(suggested) : f.hourlyRate
+    }));
   }
 
   const divColor = { print: "#C9A84C", it: "#52A9E0", clothing: "#9B7DE8" };
@@ -202,7 +316,7 @@ export default function HR() {
         ))}
       </div>
 
-      {/* EMPLOYEES TAB */}
+      {/* ── EMPLOYEES TAB ── */}
       {tab === "employees" && (
         <div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -239,21 +353,47 @@ export default function HR() {
                 {e.phone && <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>📞 {e.phone}</div>}
                 {e.idNumber && <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>🪪 {e.idNumber}</div>}
                 {e.address && <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>📍 {e.address}</div>}
-                {e.salary && <div style={{ fontSize: 14, color: "#C9A84C", marginTop: 10, fontWeight: 700 }}>
-                  R {parseFloat(e.salary).toFixed(2)} / month
-                </div>}
+
+                {/* Pay rate display */}
+                <div style={{ marginTop: 10 }}>
+                  {e.payType === "hourly" ? (
+                    <div>
+                      <span style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1 }}>Hourly Rate</span>
+                      <div style={{ fontSize: 14, color: "#C9A84C", fontWeight: 700 }}>
+                        R {parseFloat(e.hourlyRate || 0).toFixed(2)} / hr
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1 }}>Monthly Salary</span>
+                      <div style={{ fontSize: 14, color: "#C9A84C", fontWeight: 700 }}>
+                        R {parseFloat(e.salary || 0).toFixed(2)} / month
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pay type badge */}
+                <div style={{
+                  marginTop: 8, display: "inline-block",
+                  background: e.payType === "hourly" ? "rgba(82,169,224,0.15)" : "rgba(201,168,76,0.15)",
+                  color: e.payType === "hourly" ? "#52A9E0" : "#C9A84C",
+                  fontSize: 10, fontWeight: 700, padding: "3px 8px",
+                  borderRadius: 20, textTransform: "uppercase", letterSpacing: 1
+                }}>
+                  {e.payType === "hourly" ? "⏱ Hourly" : "📅 Monthly"}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* PAYSLIPS TAB */}
+      {/* ── PAYSLIPS TAB ── */}
       {tab === "payslips" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-            {/* Division filter */}
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {["all", "print", "it", "clothing"].map(f => (
                 <button key={f} onClick={() => setDivFilter(f)} style={{
                   background: divFilter === f ? "#C9A84C" : "#1A1A1A",
@@ -274,15 +414,13 @@ export default function HR() {
           </div>
 
           {filteredPayroll.length === 0 ? (
-            <div style={{ color: "#444", textAlign: "center", padding: "60px 0", fontSize: 14 }}>
-              No payslips yet
-            </div>
+            <div style={{ color: "#444", textAlign: "center", padding: "60px 0", fontSize: 14 }}>No payslips yet</div>
           ) : (
             <div style={{ background: "#1A1A1A", border: "1px solid #2a2a2a", borderRadius: 14, overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #2a2a2a" }}>
-                    {["Employee", "Division", "Period", "Gross", "Deductions", "Net Pay", ""].map(h => (
+                    {["Employee", "Pay Type", "Division", "Period", "Gross", "Deductions", "Net Pay", ""].map(h => (
                       <th key={h} style={{
                         textAlign: "left", padding: "14px 16px", color: "#555",
                         fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1
@@ -298,6 +436,16 @@ export default function HR() {
                         <div style={{ fontSize: 11, color: "#666" }}>{r.role}</div>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20,
+                          background: r.payType === "hourly" ? "rgba(82,169,224,0.15)" : "rgba(201,168,76,0.15)",
+                          color: r.payType === "hourly" ? "#52A9E0" : "#C9A84C",
+                          textTransform: "uppercase", letterSpacing: 1
+                        }}>
+                          {r.payType === "hourly" ? `⏱ ${r.hoursWorked}h` : "📅 Monthly"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
                         <span style={{ color: divColor[r.division], fontSize: 12, fontWeight: 600 }}>
                           {DIVISIONS.find(d => d.value === r.division)?.label}
                         </span>
@@ -308,11 +456,16 @@ export default function HR() {
                       <td style={{ padding: "12px 16px", color: "#52C97A", fontWeight: 700 }}>R {r.net.toFixed(2)}</td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button onClick={() => printPayslip(r, r.taxRate, r.uifRate)} style={{
+                          <button onClick={() => printPayslip(r)} style={{
                             background: "transparent", border: "1px solid #333", borderRadius: 6,
                             color: "#888", cursor: "pointer", padding: "5px 10px", fontSize: 12,
                             display: "flex", alignItems: "center", gap: 4, fontFamily: "'DM Sans', sans-serif"
                           }}><Printer size={12} /> Print</button>
+                          <button onClick={() => downloadPayslip(r)} style={{
+                            background: "transparent", border: "1px solid #C9A84C", borderRadius: 6,
+                            color: "#C9A84C", cursor: "pointer", padding: "5px 10px", fontSize: 12,
+                            display: "flex", alignItems: "center", gap: 4, fontFamily: "'DM Sans', sans-serif"
+                          }}><Download size={12} /> Download</button>
                           <button onClick={() => deletePayslip(r.id)} style={{
                             background: "transparent", border: "1px solid #E05252", borderRadius: 6,
                             color: "#E05252", cursor: "pointer", padding: "5px 10px", fontSize: 12,
@@ -329,7 +482,7 @@ export default function HR() {
         </div>
       )}
 
-      {/* Add Employee Modal */}
+      {/* ── Add Employee Modal ── */}
       {showEmpForm && (
         <div onClick={() => setShowEmpForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
@@ -337,7 +490,7 @@ export default function HR() {
         }}>
           <div onClick={e => e.stopPropagation()} style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
-            width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto",
+            width: "100%", maxWidth: 580, maxHeight: "90vh", overflowY: "auto",
             padding: 32, position: "relative"
           }}>
             <button onClick={() => setShowEmpForm(false)} style={{
@@ -347,22 +500,71 @@ export default function HR() {
             <h2 style={{ fontFamily: "'Playfair Display', serif", color: "#C9A84C", marginBottom: 24 }}>Add Employee</h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              {[
-                ["name", "Full Name", "text"],
-                ["role", "Job Title", "text"],
-                ["email", "Email", "email"],
-                ["phone", "Phone", "text"],
-                ["idNumber", "ID Number", "text"],
-                ["startDate", "Start Date", "date"],
-                ["salary", "Monthly Salary (R)", "number"],
-              ].map(([k, l, t]) => (
-                <div key={k}>
-                  <label style={lbl}>{l}</label>
-                  <input value={empForm[k]} onChange={e => setEmpForm(f => ({ ...f, [k]: e.target.value }))}
-                    type={t} style={inp} />
-                </div>
-              ))}
 
+              {/* Pay Type toggle */}
+              <div style={{ gridColumn: "1/-1" }}>
+                <label style={lbl}>Pay Type</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {PAY_TYPES.map(pt => (
+                    <button key={pt.value} onClick={() => setEmpForm(f => ({ ...f, payType: pt.value }))} style={{
+                      flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid",
+                      borderColor: empForm.payType === pt.value ? "#C9A84C" : "#333",
+                      background: empForm.payType === pt.value ? "rgba(201,168,76,0.12)" : "transparent",
+                      color: empForm.payType === pt.value ? "#C9A84C" : "#555",
+                      fontWeight: empForm.payType === pt.value ? 700 : 400,
+                      fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif"
+                    }}>{pt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div>
+                <label style={lbl}>Full Name</label>
+                <input value={empForm.name} onChange={e => setEmpForm(f => ({ ...f, name: e.target.value }))}
+                  style={inp} />
+              </div>
+
+              {/* Role with suggestion */}
+              <div>
+                <label style={lbl}>Job Title</label>
+                <input
+                  value={empForm.role}
+                  onChange={e => handleRoleChange(e.target.value)}
+                  list="role-suggestions"
+                  style={inp}
+                  placeholder="e.g. DTF Operator"
+                />
+                <datalist id="role-suggestions">
+                  {Object.keys(ROLE_RATE_SUGGESTIONS).map(r => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+                {empForm.payType === "hourly" && ROLE_RATE_SUGGESTIONS[empForm.role] && (
+                  <div style={{ fontSize: 11, color: "#52A9E0", marginTop: 4 }}>
+                    💡 Suggested rate: R {ROLE_RATE_SUGGESTIONS[empForm.role]}/hr
+                  </div>
+                )}
+              </div>
+
+              {/* Conditional salary / rate field */}
+              {empForm.payType === "monthly" ? (
+                <div>
+                  <label style={lbl}>Monthly Salary (R)</label>
+                  <input type="number" value={empForm.salary}
+                    onChange={e => setEmpForm(f => ({ ...f, salary: e.target.value }))}
+                    style={inp} placeholder="e.g. 8500" />
+                </div>
+              ) : (
+                <div>
+                  <label style={lbl}>Hourly Rate (R)</label>
+                  <input type="number" value={empForm.hourlyRate}
+                    onChange={e => setEmpForm(f => ({ ...f, hourlyRate: e.target.value }))}
+                    style={inp} placeholder="e.g. 45" />
+                </div>
+              )}
+
+              {/* Division */}
               <div>
                 <label style={lbl}>Division</label>
                 <select value={empForm.division} onChange={e => setEmpForm(f => ({ ...f, division: e.target.value }))}
@@ -370,6 +572,19 @@ export default function HR() {
                   {DIVISIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </div>
+
+              {[
+                ["email", "Email", "email"],
+                ["phone", "Phone", "text"],
+                ["idNumber", "ID Number", "text"],
+                ["startDate", "Start Date", "date"],
+              ].map(([k, l, t]) => (
+                <div key={k}>
+                  <label style={lbl}>{l}</label>
+                  <input value={empForm[k]} onChange={e => setEmpForm(f => ({ ...f, [k]: e.target.value }))}
+                    type={t} style={inp} />
+                </div>
+              ))}
 
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Address</label>
@@ -387,7 +602,7 @@ export default function HR() {
         </div>
       )}
 
-      {/* Generate Payslip Modal */}
+      {/* ── Generate Payslip Modal ── */}
       {showSlipForm && (
         <div onClick={() => setShowSlipForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
@@ -395,7 +610,7 @@ export default function HR() {
         }}>
           <div onClick={e => e.stopPropagation()} style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
-            width: "100%", maxWidth: 580, maxHeight: "90vh", overflowY: "auto",
+            width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto",
             padding: 32, position: "relative"
           }}>
             <button onClick={() => setShowSlipForm(false)} style={{
@@ -405,27 +620,36 @@ export default function HR() {
             <h2 style={{ fontFamily: "'Playfair Display', serif", color: "#C9A84C", marginBottom: 24 }}>Generate Payslip</h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+              {/* Employee select */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Employee</label>
-                <select value={slipForm.employeeId}
-                  onChange={e => {
-                    const emp = employees.find(em => em.id === e.target.value);
-                    setSlipForm(f => ({
-                      ...f,
-                      employeeId: e.target.value,
-                      basicSalary: emp?.salary || ""
-                    }));
-                  }}
+                <select value={slipForm.employeeId} onChange={e => handleEmployeeSelect(e.target.value)}
                   style={{ ...inp, background: "#111" }}>
                   <option value="">— Select Employee —</option>
                   {employees.map(e => (
                     <option key={e.id} value={e.id}>
-                      {e.name} ({DIVISIONS.find(d => d.value === e.division)?.label})
+                      {e.name} — {e.payType === "hourly" ? `R${e.hourlyRate}/hr` : `R${e.salary}/month`} ({DIVISIONS.find(d => d.value === e.division)?.label})
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Pay type info banner */}
+              {selectedEmp && (
+                <div style={{
+                  gridColumn: "1/-1", background: isHourly ? "rgba(82,169,224,0.08)" : "rgba(201,168,76,0.08)",
+                  border: `1px solid ${isHourly ? "rgba(82,169,224,0.25)" : "rgba(201,168,76,0.25)"}`,
+                  borderRadius: 8, padding: "10px 14px", fontSize: 13,
+                  color: isHourly ? "#52A9E0" : "#C9A84C"
+                }}>
+                  {isHourly
+                    ? `⏱ Hourly employee — Rate: R ${hourlyRate}/hr. Enter hours worked below.`
+                    : `📅 Monthly employee — Base salary: R ${selectedEmp.salary}. Adjust below if needed.`}
+                </div>
+              )}
+
+              {/* Pay period */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Pay Period (e.g. June 2025)</label>
                 <input value={slipForm.period}
@@ -433,9 +657,51 @@ export default function HR() {
                   style={inp} placeholder="e.g. June 2025" />
               </div>
 
+              {/* Conditional fields based on pay type */}
+              {isHourly ? (
+                <>
+                  <div>
+                    <label style={lbl}>Regular Hours Worked</label>
+                    <input type="number" value={slipForm.hoursWorked}
+                      onChange={e => setSlipForm(f => ({ ...f, hoursWorked: e.target.value }))}
+                      style={inp} placeholder="e.g. 176" />
+                    {hoursWorked > 0 && (
+                      <div style={{ fontSize: 11, color: "#52A9E0", marginTop: 4 }}>
+                        = R {(hoursWorked * hourlyRate).toFixed(2)} basic
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={lbl}>Overtime Hours (1.5×)</label>
+                    <input type="number" value={slipForm.overtimeHours}
+                      onChange={e => setSlipForm(f => ({ ...f, overtimeHours: e.target.value }))}
+                      style={inp} placeholder="e.g. 8" />
+                    {overtimeHours > 0 && (
+                      <div style={{ fontSize: 11, color: "#52A9E0", marginTop: 4 }}>
+                        = R {(overtimeHours * hourlyRate * 1.5).toFixed(2)} overtime
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label style={lbl}>Basic Salary (R)</label>
+                    <input type="number" value={slipForm.basicSalary}
+                      onChange={e => setSlipForm(f => ({ ...f, basicSalary: e.target.value }))}
+                      style={inp} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Overtime (R)</label>
+                    <input type="number" value={slipForm.overtime}
+                      onChange={e => setSlipForm(f => ({ ...f, overtime: e.target.value }))}
+                      style={inp} />
+                  </div>
+                </>
+              )}
+
+              {/* Common fields */}
               {[
-                ["basicSalary", "Basic Salary (R)"],
-                ["overtime", "Overtime (R)"],
                 ["bonus", "Bonus / Commission (R)"],
                 ["taxRate", "PAYE Tax %"],
                 ["uif", "UIF %"],
@@ -466,8 +732,8 @@ export default function HR() {
                 Live Preview
               </div>
               {[
-                ["Basic Salary", basic, "#ddd"],
-                ["Overtime", overtime, "#ddd"],
+                isHourly ? [`Regular Pay (${hoursWorked}h × R${hourlyRate})`, basic, "#ddd"] : ["Basic Salary", basic, "#ddd"],
+                isHourly ? [`Overtime (${overtimeHours}h × 1.5×)`, overtime, "#ddd"] : ["Overtime", overtime, "#ddd"],
                 ["Bonus", bonus, "#ddd"],
                 ["Gross Pay", gross, "#F0F0F0"],
                 ["PAYE Tax", tax, "#E05252"],
@@ -483,10 +749,7 @@ export default function HR() {
                   <span style={{ color: c, fontWeight: 500, fontSize: 13 }}>R {v.toFixed(2)}</span>
                 </div>
               ))}
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                padding: "12px 0 0", marginTop: 4
-              }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 0", marginTop: 4 }}>
                 <span style={{ color: "#aaa", fontSize: 14, fontWeight: 700 }}>NET PAY</span>
                 <span style={{ color: "#52C97A", fontWeight: 700, fontSize: 20 }}>R {net.toFixed(2)}</span>
               </div>
