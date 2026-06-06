@@ -3,11 +3,11 @@ import { Navigate, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 const roleAccess = {
-  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/division/print", "/division/it", "/division/clothing"],
-  print:    ["/", "/orders", "/division/print"],
-  it:       ["/", "/orders", "/division/it"],
-  clothing: ["/", "/orders", "/division/clothing"],
-  hr:       ["/", "/hr", "/contracts"],
+  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/customers", "/division/print", "/division/it", "/division/clothing"],
+  print:    ["/", "/orders", "/customers", "/division/print"],
+  it:       ["/", "/orders", "/customers", "/division/it"],
+  clothing: ["/", "/orders", "/customers", "/division/clothing"],
+  hr:       ["/", "/hr", "/contracts", "/customers"],
 };
 
 export default function Layout({ children }) {
@@ -19,7 +19,6 @@ export default function Layout({ children }) {
   const allowed = roleAccess[userRole || "admin"] || ["/"];
   const path = location.pathname;
 
-  // Check exact match or prefix match for dynamic routes like /division/print
   const hasAccess = allowed.some(p => path === p || path.startsWith(p + "/") || p.startsWith(path));
 
   if (!hasAccess) return <Navigate to="/" />;
