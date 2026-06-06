@@ -3,12 +3,12 @@ import { Navigate, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 const roleAccess = {
-  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/division/print", "/division/it", "/division/clothing", "/customers", "/quotes", "/invoices"],
+  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/division/print", "/division/it", "/division/clothing", "/customers", "/quotes", "/invoices", "/supplies"],
   print:    ["/", "/orders", "/division/print", "/customers"],
   it:       ["/", "/orders", "/division/it", "/customers"],
   clothing: ["/", "/orders", "/division/clothing", "/customers"],
   hr:       ["/", "/hr", "/contracts"],
-  staff:    ["/staff-orders"],
+  staff:    ["/staff-orders", "/supplies"],
 };
 
 export default function Layout({ children }) {
@@ -22,7 +22,6 @@ export default function Layout({ children }) {
 
   const hasAccess = allowed.some(p => path === p || path.startsWith(p + "/"));
 
-  // Staff landing on / → redirect to their page
   if (userRole === "staff" && path === "/") return <Navigate to="/staff-orders" />;
 
   if (!hasAccess) return <Navigate to="/" />;

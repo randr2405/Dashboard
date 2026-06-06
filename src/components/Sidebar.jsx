@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Package, Users, Shirt,
   Monitor, Printer, LogOut, FileText, Settings2,
-  UserRound, ClipboardList, FileSignature, Receipt
+  UserRound, ClipboardList, FileSignature, Receipt, Archive
 } from "lucide-react";
 
 const allNav = [
@@ -38,6 +38,10 @@ const allNav = [
   {
     label: "Production Orders", icon: ClipboardList, to: "/staff-orders",
     roles: ["staff"]
+  },
+  {
+    label: "Stock & Supplies", icon: Archive, to: "/supplies",
+    roles: ["admin", "staff"]
   },
   {
     divider: true, label: "DIVISIONS",

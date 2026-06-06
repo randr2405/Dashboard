@@ -13,6 +13,7 @@ import Customers from "./pages/Customers";
 import StaffOrders from "./pages/StaffOrders";
 import Quotes from "./pages/Quotes";
 import Invoices from "./pages/Invoices";
+import Supplies from "./pages/Supplies";
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ function AppRoutes() {
       <Route path="/settings" element={<Layout><Settings /></Layout>} />
       <Route path="/customers" element={<Layout><Customers /></Layout>} />
       <Route path="/staff-orders" element={<Layout><StaffOrders /></Layout>} />
+      <Route path="/supplies" element={<Layout><Supplies /></Layout>} />
       <Route path="/quotes" element={
         <Layout>
           <Quotes onConvertToInvoice={handleConvertToInvoice} />
