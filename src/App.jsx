@@ -9,6 +9,7 @@ import Division from "./pages/Division";
 import Contracts from "./pages/Contracts";
 import Settings from "./pages/Settings";
 import Customers from "./pages/Customers";
+import StaffOrders from "./pages/StaffOrders";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/contracts" element={<Layout><Contracts /></Layout>} />
           <Route path="/settings" element={<Layout><Settings /></Layout>} />
           <Route path="/customers" element={<Layout><Customers /></Layout>} />
+          <Route path="/staff-orders" element={<Layout><StaffOrders /></Layout>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
