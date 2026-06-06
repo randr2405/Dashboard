@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Package, Users, Shirt,
-  Monitor, Printer, LogOut, FileText, Settings2, UserRound
+  Monitor, Printer, LogOut, FileText, Settings2, UserRound, ClipboardList
 } from "lucide-react";
 
 const allNav = [
@@ -25,6 +25,11 @@ const allNav = [
   {
     label: "Contracts", icon: FileText, to: "/contracts",
     roles: ["admin", "hr"]
+  },
+  {
+    // Staff-only nav item
+    label: "Production Orders", icon: ClipboardList, to: "/staff-orders",
+    roles: ["staff"]
   },
   {
     divider: true, label: "DIVISIONS",
