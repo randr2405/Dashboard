@@ -27,12 +27,21 @@ export default function Layout({ children }) {
   if (!user) return <Navigate to="/login" />;
 
   const role    = userRole || "admin";
+  const home    = roleHome[role] || "/";
+
+  // Staff (and any role whose home isn't "/") should never see "/"
+  if (location.pathname === "/" && home !== "/") {
+    return <Navigate to={home} replace />;
+  }
+
   const allowed = roleAccess[role] || ["/"];
   const path    = location.pathname;
 
-  const hasAccess = allowed.some(p => path === p || path.startsWith(p + "/") || p.startsWith(path));
+  const hasAccess = allowed.some(p =>
+    path === p || path.startsWith(p + "/")
+  );
 
-  if (!hasAccess) return <Navigate to={roleHome[role] || "/"} />;
+  if (!hasAccess) return <Navigate to={home} replace />;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0D0D0D" }}>
