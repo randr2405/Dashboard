@@ -1,13 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, serverTimestamp
+  doc, onSnapshot, serverTimestamp, query, where, getDocs
 } from "firebase/firestore";
-import {
-  ref, uploadBytes, getDownloadURL, deleteObject
-} from "firebase/storage";
-import { db, storage } from "../firebase";
-import { Plus, X, Search, Download, Upload, Paperclip, Trash2, Image, Calendar } from "lucide-react";
+import { db } from "../firebase";
+import { Plus, X, Search, Download, Upload, Paperclip, Trash2, Image, Calendar, UserCheck } from "lucide-react";
 
 // ─── Divisions ───────────────────────────────────────────────────────────────
 const DIVISIONS = [
@@ -153,6 +150,7 @@ function monthKey(dateStr) {
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function Orders() {
   const [orders, setOrders]         = useState([]);
+  const [customers, setCustomers]   = useState([]);
   const [showForm, setShowForm]     = useState(false);
   const [form, setForm]             = useState(makeEmpty());
   const [editingId, setEditingId]   = useState(null);
@@ -163,15 +161,20 @@ export default function Orders() {
   const [saving, setSaving]         = useState(false);
   const [uploadingForm, setUploadingForm]     = useState(false);
   const [uploadingDirect, setUploadingDirect] = useState(false);
+  const [clientSearch, setClientSearch]       = useState("");
+  const [showClientDrop, setShowClientDrop]   = useState(false);
   const fileInputRef      = useRef(null);
   const artInputRef       = useRef(null);
   const artInputDetailRef = useRef(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "orders"), (snap) => {
+    const unsubOrders = onSnapshot(collection(db, "orders"), (snap) => {
       setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    return unsub;
+    const unsubCustomers = onSnapshot(collection(db, "customers"), (snap) => {
+      setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => { unsubOrders(); unsubCustomers(); };
   }, []);
 
   // ── Available months from existing orders ──
@@ -209,9 +212,36 @@ export default function Orders() {
         data.createdAt = serverTimestamp();
         await addDoc(collection(db, "orders"), data);
       }
+
+      // ── Auto-save customer if new ──────────────────────────────────────
+      if (form.client.trim()) {
+        const existing = customers.find(
+          c => c.name?.toLowerCase() === form.client.trim().toLowerCase()
+        );
+        if (!existing) {
+          await addDoc(collection(db, "customers"), {
+            name:      form.client.trim(),
+            contact:   form.contact || "",
+            phone:     form.phone || "",
+            email:     form.email || "",
+            division:  form.division || "",
+            createdAt: serverTimestamp(),
+          });
+        } else {
+          // Update their details in case they changed
+          await updateDoc(doc(db, "customers", existing.id), {
+            contact:  form.contact || existing.contact,
+            phone:    form.phone   || existing.phone,
+            email:    form.email   || existing.email,
+            division: form.division,
+          });
+        }
+      }
+
       setShowForm(false);
       setForm(makeEmpty());
       setEditingId(null);
+      setClientSearch("");
     } catch (err) {
       alert("Failed to save order: " + err.message);
     }
@@ -235,45 +265,70 @@ export default function Orders() {
     setShowForm(true);
   }
 
-  // ── Artwork upload (form) ──────────────────────────────────────────────────
+  // ── Select existing customer → auto-fill form ─────────────────────────────
+  function selectCustomer(c) {
+    setForm(f => ({ ...f, client: c.name, contact: c.contact, phone: c.phone, email: c.email }));
+    setClientSearch(c.name);
+    setShowClientDrop(false);
+  }
+
+  // ── Convert file to base64 ────────────────────────────────────────────────
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result); // data:image/png;base64,...
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Artwork upload (form) — base64 into form state ────────────────────────
   async function handleArtUploadForm(e) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
+    const oversized = files.filter(f => f.size > 700 * 1024);
+    if (oversized.length) {
+      alert(`These files are too large (max 700KB each):\n${oversized.map(f => f.name).join("\n")}\n\nPlease compress or resize them first.`);
+      e.target.value = "";
+      return;
+    }
     setUploadingForm(true);
     try {
       const uploaded = [];
       for (const file of files) {
-        const storageRef = ref(storage, `artwork/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        uploaded.push({ name: file.name, url, path: storageRef.fullPath });
+        const base64 = await fileToBase64(file);
+        uploaded.push({ name: file.name, url: base64, path: `${Date.now()}_${file.name}` });
       }
       setForm(f => ({ ...f, artworkFiles: [...(f.artworkFiles || []), ...uploaded] }));
     } catch (err) {
-      alert("Upload failed: " + err.message);
+      alert("Failed to process file: " + err.message);
     }
     setUploadingForm(false);
     e.target.value = "";
   }
 
-  // ── Artwork upload (detail modal) ─────────────────────────────────────────
+  // ── Artwork upload (detail modal) — base64 saved directly to Firestore ────
   async function handleArtUploadDirect(e, orderId) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
+    const oversized = files.filter(f => f.size > 700 * 1024);
+    if (oversized.length) {
+      alert(`These files are too large (max 700KB each):\n${oversized.map(f => f.name).join("\n")}\n\nPlease compress or resize them first.`);
+      e.target.value = "";
+      return;
+    }
     setUploadingDirect(true);
     try {
       const order    = orders.find(o => o.id === orderId);
       const existing = order?.artworkFiles || [];
       const uploaded = [];
       for (const file of files) {
-        const storageRef = ref(storage, `artwork/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        uploaded.push({ name: file.name, url, path: storageRef.fullPath });
+        const base64 = await fileToBase64(file);
+        uploaded.push({ name: file.name, url: base64, path: `${Date.now()}_${file.name}` });
       }
       await updateDoc(doc(db, "orders", orderId), { artworkFiles: [...existing, ...uploaded] });
     } catch (err) {
-      alert("Upload failed: " + err.message);
+      alert("Failed to save file: " + err.message);
     }
     setUploadingDirect(false);
     e.target.value = "";
@@ -281,7 +336,6 @@ export default function Orders() {
 
   async function handleDeleteArtwork(orderId, fileObj) {
     if (!confirm(`Remove artwork file "${fileObj.name}"?`)) return;
-    try { await deleteObject(ref(storage, fileObj.path)); } catch {}
     const order   = orders.find(o => o.id === orderId);
     const updated = (order?.artworkFiles || []).filter(f => f.path !== fileObj.path);
     await updateDoc(doc(db, "orders", orderId), { artworkFiles: updated });
@@ -373,7 +427,7 @@ export default function Orders() {
           }}>
             <Download size={14} /> Export
           </button>
-          <button onClick={() => { setForm(makeEmpty()); setEditingId(null); setShowForm(true); }} style={{
+          <button onClick={() => { setForm(makeEmpty()); setEditingId(null); setClientSearch(""); setShowForm(true); }} style={{
             background: "#C9A84C", color: "#0D0D0D", border: "none", borderRadius: 10,
             padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 8, fontFamily: "'DM Sans', sans-serif",
@@ -616,7 +670,7 @@ export default function Orders() {
                     ))}
                   </div>
                 )}
-                <input ref={artInputDetailRef} type="file" multiple accept="image/*,.pdf,.ai,.eps,.svg,.psd,.cdr"
+                <input ref={artInputDetailRef} type="file" multiple accept="image/*,.pdf,.svg"
                   onChange={e => handleArtUploadDirect(e, selectedOrder.id)}
                   style={{ display: "none" }} />
                 <button onClick={() => artInputDetailRef.current.click()} disabled={uploadingDirect} style={{
@@ -704,10 +758,69 @@ export default function Orders() {
               </h2>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                {/* Ref + Client */}
+                {/* Order Ref */}
+                <div>
+                  <label style={lbl}>Order Ref</label>
+                  <input type="text" value={form.ref || ""} onChange={e => setField("ref", e.target.value)} style={inp} />
+                </div>
+
+                {/* Client Name — autocomplete */}
+                <div style={{ position: "relative" }}>
+                  <label style={lbl}>
+                    Client Name
+                    {customers.length > 0 && (
+                      <span style={{ color: "#555", fontWeight: 400, marginLeft: 6, textTransform: "none", letterSpacing: 0 }}>
+                        · {customers.length} saved
+                      </span>
+                    )}
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <UserCheck size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555", pointerEvents: "none" }} />
+                    <input
+                      type="text"
+                      value={clientSearch || form.client}
+                      onChange={e => {
+                        setClientSearch(e.target.value);
+                        setField("client", e.target.value);
+                        setShowClientDrop(true);
+                      }}
+                      onFocus={() => setShowClientDrop(true)}
+                      onBlur={() => setTimeout(() => setShowClientDrop(false), 150)}
+                      placeholder="Type or search client..."
+                      style={{ ...inp, paddingLeft: 34 }}
+                    />
+                  </div>
+                  {showClientDrop && customers.filter(c =>
+                    c.name?.toLowerCase().includes((clientSearch || "").toLowerCase())
+                  ).length > 0 && (
+                    <div style={{
+                      position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999,
+                      background: "#1a1a1a", border: "1px solid #333", borderRadius: 8,
+                      maxHeight: 180, overflowY: "auto", marginTop: 4,
+                    }}>
+                      {customers
+                        .filter(c => c.name?.toLowerCase().includes((clientSearch || "").toLowerCase()))
+                        .map(c => (
+                          <div key={c.id} onMouseDown={() => selectCustomer(c)} style={{
+                            padding: "10px 14px", cursor: "pointer", fontSize: 13,
+                            borderBottom: "1px solid #222",
+                            display: "flex", flexDirection: "column", gap: 2,
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#252525"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <span style={{ color: "#F0F0F0", fontWeight: 600 }}>{c.name}</span>
+                            {(c.phone || c.email) && (
+                              <span style={{ color: "#555", fontSize: 11 }}>{c.phone}{c.phone && c.email ? " · " : ""}{c.email}</span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Rest of fields */}
                 {[
-                  ["ref",     "Order Ref",       "text"],
-                  ["client",  "Client Name",      "text"],
                   ["contact", "Contact Person",   "text"],
                   ["phone",   "Phone",            "text"],
                   ["email",   "Email",            "email"],
@@ -820,7 +933,7 @@ export default function Orders() {
                     ))}
                   </div>
                 )}
-                <input ref={artInputRef} type="file" multiple accept="image/*,.pdf,.ai,.eps,.svg,.psd,.cdr"
+                <input ref={artInputRef} type="file" multiple accept="image/*,.pdf,.svg"
                   onChange={handleArtUploadForm} style={{ display: "none" }} />
                 <button onClick={() => artInputRef.current.click()} disabled={uploadingForm} style={{
                   background: "transparent", border: "1px dashed #333", borderRadius: 8,

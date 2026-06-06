@@ -8,6 +8,7 @@ import HR from "./pages/HR";
 import Division from "./pages/Division";
 import Contracts from "./pages/Contracts";
 import Settings from "./pages/Settings";
+import Customers from "./pages/Customers";
 
 export default function App() {
   return (
@@ -19,10 +20,10 @@ export default function App() {
           <Route path="/orders" element={<Layout><Orders /></Layout>} />
           <Route path="/hr" element={<Layout><HR /></Layout>} />
           <Route path="/division/:slug" element={<Layout><Division /></Layout>} />
-          <Route path="*" element={<Navigate to="/" />} />
           <Route path="/contracts" element={<Layout><Contracts /></Layout>} />
           <Route path="/settings" element={<Layout><Settings /></Layout>} />
-          
+          <Route path="/customers" element={<Layout><Customers /></Layout>} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

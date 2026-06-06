@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, Package, Users, Shirt,
-  Monitor, Printer, LogOut, FileText, Settings2
+  Monitor, Printer, LogOut, FileText, Settings2, UserRound
 } from "lucide-react";
 
 const allNav = [
@@ -12,6 +12,10 @@ const allNav = [
   },
   {
     label: "Order Tracker", icon: Package, to: "/orders",
+    roles: ["admin", "print", "it", "clothing"]
+  },
+  {
+    label: "Customers", icon: UserRound, to: "/customers",
     roles: ["admin", "print", "it", "clothing"]
   },
   {
