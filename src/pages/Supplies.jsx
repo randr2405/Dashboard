@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
-import { Plus, X, AlertTriangle, Package, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, X, AlertTriangle, Pencil, Trash2, Search, ChevronUp, ChevronDown } from "lucide-react";
 
 const DIVISIONS = [
   {
@@ -10,7 +10,7 @@ const DIVISIONS = [
     color: "#C9A84C",
     icon: "🧵",
     categories: [
-      { key: "thread", label: "Thread", unit: "spools", trackColour: true },
+      { key: "thread", label: "Thread", unit: "spools", trackColour: true, tableView: true },
       { key: "needles", label: "Needles", unit: "qty" },
       { key: "bobbins", label: "Bobbins", unit: "qty" },
       { key: "scissors", label: "Scissors", unit: "qty" },
@@ -50,17 +50,34 @@ function fmt(n) {
   return Number(n || 0).toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+const inputStyle = {
+  width: "100%", background: "#111", border: "1px solid #2a2a2a",
+  borderRadius: 8, padding: "10px 12px", color: "#F0F0F0", fontSize: 13,
+  outline: "none", boxSizing: "border-box",
+};
+const labelStyle = {
+  fontSize: 11, color: "#666", textTransform: "uppercase",
+  letterSpacing: 1, marginBottom: 5, display: "block",
+};
+const btnStyle = (bg, color = "#0D0D0D") => ({
+  background: bg, color, border: "none", borderRadius: 8,
+  padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+});
+
 export default function Supplies() {
   const [items, setItems] = useState([]);
-  const [openDiv, setOpenDiv] = useState({ embroidery: true, dtf: true, vinyl: true });
-  const [addModal, setAddModal] = useState(null); // { division, category }
-  const [editModal, setEditModal] = useState(null); // item
-  const [adjustModal, setAdjustModal] = useState(null); // item
+  const [activeTab, setActiveTab] = useState("embroidery");
+  const [activeCat, setActiveCat] = useState({});
+  const [addModal, setAddModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [adjustModal, setAdjustModal] = useState(null);
   const [form, setForm] = useState({});
   const [adjustQty, setAdjustQty] = useState("");
-  const [adjustNote, setAdjustNote] = useState("");
-  const [adjustType, setAdjustType] = useState("add"); // add | use
+  const [adjustType, setAdjustType] = useState("add");
   const [saving, setSaving] = useState(false);
+  const [threadSearch, setThreadSearch] = useState("");
+  const [threadSort, setThreadSort] = useState("name"); // name | qty
+  const [threadSortDir, setThreadSortDir] = useState("asc");
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "supplies"), snap =>
@@ -69,32 +86,35 @@ export default function Supplies() {
     return unsub;
   }, []);
 
-  function openAdd(division, category) {
-    setForm({
-      name: category.trackColour ? "" : category.label,
-      colourNumber: "",
-      qty: "",
-      metres: "",
-      weight: "",
-      lowStockThreshold: "",
-      notes: "",
-    });
-    setAddModal({ division, category });
+  const currentDiv = DIVISIONS.find(d => d.key === activeTab);
+  const currentCatKey = activeCat[activeTab] || currentDiv?.categories[0]?.key;
+  const currentCat = currentDiv?.categories.find(c => c.key === currentCatKey);
+
+  function catItems(divKey, catKey) {
+    return items.filter(i => i.division === divKey && i.category === catKey);
+  }
+  function isLow(item) {
+    return (item.qty || 0) <= (item.lowStockThreshold ?? 2);
+  }
+  const totalLowStock = items.filter(isLow).length;
+
+  function openAdd() {
+    setForm({ name: currentCat?.trackColour ? "" : currentCat?.label, colourNumber: "", qty: "", metres: "", weight: "", lowStockThreshold: "2", notes: "" });
+    setAddModal(true);
   }
 
   async function handleAdd() {
     if (!form.name?.trim()) return;
     setSaving(true);
-    const cat = addModal.category;
     await addDoc(collection(db, "supplies"), {
-      division: addModal.division.key,
-      category: cat.key,
-      categoryLabel: cat.label,
+      division: currentDiv.key,
+      category: currentCat.key,
+      categoryLabel: currentCat.label,
       name: form.name.trim(),
       colourNumber: form.colourNumber || null,
       qty: parseFloat(form.qty) || 0,
-      metres: cat.trackMetres ? (parseFloat(form.metres) || 0) : null,
-      weight: cat.trackWeight ? (parseFloat(form.weight) || 0) : null,
+      metres: currentCat.trackMetres ? (parseFloat(form.metres) || 0) : null,
+      weight: currentCat.trackWeight ? (parseFloat(form.weight) || 0) : null,
       lowStockThreshold: parseFloat(form.lowStockThreshold) || 2,
       notes: form.notes || "",
       createdAt: serverTimestamp(),
@@ -109,8 +129,8 @@ export default function Supplies() {
     await updateDoc(doc(db, "supplies", editModal.id), {
       name: form.name.trim(),
       colourNumber: form.colourNumber || null,
-      metres: editModal.metres !== null ? (parseFloat(form.metres) || 0) : null,
-      weight: editModal.weight !== null ? (parseFloat(form.weight) || 0) : null,
+      metres: editModal.metres !== null && editModal.metres !== undefined ? (parseFloat(form.metres) || 0) : null,
+      weight: editModal.weight !== null && editModal.weight !== undefined ? (parseFloat(form.weight) || 0) : null,
       lowStockThreshold: parseFloat(form.lowStockThreshold) || 2,
       notes: form.notes || "",
     });
@@ -129,7 +149,6 @@ export default function Supplies() {
     setSaving(false);
     setAdjustModal(null);
     setAdjustQty("");
-    setAdjustNote("");
   }
 
   async function handleDelete(id) {
@@ -137,17 +156,6 @@ export default function Supplies() {
     await deleteDoc(doc(db, "supplies", id));
   }
 
-  function itemsFor(divKey, catKey) {
-    return items.filter(i => i.division === divKey && i.category === catKey);
-  }
-
-  function isLow(item) {
-    return (item.qty || 0) <= (item.lowStockThreshold || 2);
-  }
-
-  const totalLowStock = items.filter(isLow).length;
-
-  // ── Modal base style
   const overlay = {
     position: "fixed", inset: 0, background: "#000000cc", zIndex: 1000,
     display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
@@ -156,249 +164,313 @@ export default function Supplies() {
     background: "#1A1A1A", border: "1px solid #2a2a2a", borderRadius: 16,
     padding: 28, width: "100%", maxWidth: 440, position: "relative",
   };
-  const input = {
-    width: "100%", background: "#111", border: "1px solid #2a2a2a",
-    borderRadius: 8, padding: "10px 12px", color: "#F0F0F0", fontSize: 13,
-    outline: "none", boxSizing: "border-box",
+
+  // ── Thread table sorted/filtered
+  const threadItems = catItems(activeTab, "thread");
+  const filteredThread = threadItems
+    .filter(i => !threadSearch || i.name?.toLowerCase().includes(threadSearch.toLowerCase()) || i.colourNumber?.includes(threadSearch))
+    .sort((a, b) => {
+      let va = threadSort === "qty" ? (a.qty || 0) : (a.name || "").toLowerCase();
+      let vb = threadSort === "qty" ? (b.qty || 0) : (b.name || "").toLowerCase();
+      if (va < vb) return threadSortDir === "asc" ? -1 : 1;
+      if (va > vb) return threadSortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+  function toggleSort(col) {
+    if (threadSort === col) setThreadSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setThreadSort(col); setThreadSortDir("asc"); }
+  }
+
+  const SortIcon = ({ col }) => {
+    if (threadSort !== col) return <span style={{ color: "#333", fontSize: 10 }}>↕</span>;
+    return threadSortDir === "asc" ? <ChevronUp size={12} color="#C9A84C" /> : <ChevronDown size={12} color="#C9A84C" />;
   };
-  const label = { fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 5, display: "block" };
-  const btn = (bg, color = "#0D0D0D") => ({
-    background: bg, color, border: "none", borderRadius: 8, padding: "10px 20px",
-    fontSize: 13, fontWeight: 600, cursor: "pointer",
-  });
+
+  // ── Small card for non-thread categories
+  function SmallItemCard({ item }) {
+    const low = isLow(item);
+    return (
+      <div style={{
+        background: "#111", border: `1px solid ${low ? "#E07D5244" : "#1f1f1f"}`,
+        borderRadius: 12, padding: "16px 18px",
+        borderLeft: `3px solid ${low ? "#E07D52" : currentDiv.color}`,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, color: "#F0F0F0", fontWeight: 600 }}>{item.name}</div>
+          {item.notes && <div style={{ fontSize: 11, color: "#444", marginTop: 2, fontStyle: "italic" }}>{item.notes}</div>}
+          {low && <div style={{ fontSize: 11, color: "#E07D52", fontWeight: 600, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={11} /> Low stock</div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 26, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{fmt(item.qty)}</div>
+            <div style={{ fontSize: 11, color: "#555" }}>
+              {currentCat?.unit}
+              {item.metres != null && ` · ${fmt(item.metres)}m`}
+              {item.weight != null && ` · ${fmt(item.weight)}kg`}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
+              style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}44`, color: currentDiv.color, borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              + In
+            </button>
+            <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
+              style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              − Used
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
+              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 4 }}>
+              <Pencil size={14} />
+            </button>
+            <button onClick={() => handleDelete(item.id)}
+              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 4 }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
           Stock & Supplies
         </h1>
-        <p style={{ color: "#555", marginTop: 6, fontSize: 14 }}>
-          Manage consumables across all production divisions
-        </p>
+        <p style={{ color: "#555", marginTop: 6, fontSize: 14 }}>Manage consumables across all production divisions</p>
       </div>
 
-      {/* Low stock banner */}
       {totalLowStock > 0 && (
-        <div style={{
-          background: "#E07D5215", border: "1px solid #E07D5244", borderRadius: 12,
-          padding: "14px 20px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12,
-        }}>
-          <AlertTriangle size={18} color="#E07D52" />
-          <span style={{ fontSize: 14, color: "#E07D52", fontWeight: 600 }}>
-            {totalLowStock} item{totalLowStock !== 1 ? "s" : ""} at or below low stock threshold
-          </span>
+        <div style={{ background: "#E07D5215", border: "1px solid #E07D5244", borderRadius: 12, padding: "13px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+          <AlertTriangle size={16} color="#E07D52" />
+          <span style={{ fontSize: 14, color: "#E07D52", fontWeight: 600 }}>{totalLowStock} item{totalLowStock !== 1 ? "s" : ""} at or below low stock threshold</span>
         </div>
       )}
 
-      {/* Divisions */}
-      {DIVISIONS.map(div => (
-        <div key={div.key} style={{
-          background: "#1A1A1A", border: `1px solid ${div.color}33`,
-          borderRadius: 16, marginBottom: 20, overflow: "hidden",
-        }}>
-          {/* Division header */}
-          <div
-            onClick={() => setOpenDiv(p => ({ ...p, [div.key]: !p[div.key] }))}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "18px 24px", cursor: "pointer",
-              borderBottom: openDiv[div.key] ? `1px solid ${div.color}22` : "none",
-              background: `${div.color}08`,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22 }}>{div.icon}</span>
-              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: div.color, fontWeight: 700 }}>
-                {div.label}
-              </span>
-              <span style={{
-                background: `${div.color}22`, color: div.color, border: `1px solid ${div.color}44`,
-                borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600,
+      {/* Division tabs */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 0, borderBottom: "1px solid #2a2a2a" }}>
+        {DIVISIONS.map(div => {
+          const divLow = items.filter(i => i.division === div.key && isLow(i)).length;
+          const active = activeTab === div.key;
+          return (
+            <button key={div.key} onClick={() => setActiveTab(div.key)}
+              style={{
+                background: active ? "#1A1A1A" : "transparent",
+                border: "none", borderBottom: active ? `2px solid ${div.color}` : "2px solid transparent",
+                color: active ? div.color : "#555", padding: "14px 24px", fontSize: 14,
+                fontWeight: active ? 700 : 400, cursor: "pointer", display: "flex",
+                alignItems: "center", gap: 8, transition: "all 0.15s", marginBottom: -1,
               }}>
-                {items.filter(i => i.division === div.key).length} items
-              </span>
-              {items.filter(i => i.division === div.key && isLow(i)).length > 0 && (
-                <span style={{
-                  background: "#E07D5222", color: "#E07D52", border: "1px solid #E07D5244",
-                  borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600,
-                }}>
-                  ⚠ {items.filter(i => i.division === div.key && isLow(i)).length} low
+              <span>{div.icon}</span>
+              {div.label}
+              {divLow > 0 && (
+                <span style={{ background: "#E07D5222", color: "#E07D52", border: "1px solid #E07D5244", borderRadius: 20, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                  ⚠ {divLow}
                 </span>
               )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content panel */}
+      <div style={{ background: "#1A1A1A", border: "1px solid #2a2a2a", borderTop: "none", borderRadius: "0 0 16px 16px", display: "flex", minHeight: 500 }}>
+
+        {/* Category sidebar */}
+        <div style={{ width: 200, borderRight: "1px solid #2a2a2a", padding: "16px 0", flexShrink: 0 }}>
+          {currentDiv?.categories.map(cat => {
+            const count = catItems(currentDiv.key, cat.key).length;
+            const lowCount = catItems(currentDiv.key, cat.key).filter(isLow).length;
+            const active = currentCatKey === cat.key;
+            return (
+              <button key={cat.key}
+                onClick={() => setActiveCat(p => ({ ...p, [activeTab]: cat.key }))}
+                style={{
+                  width: "100%", background: active ? `${currentDiv.color}12` : "transparent",
+                  border: "none", borderRight: active ? `2px solid ${currentDiv.color}` : "2px solid transparent",
+                  color: active ? currentDiv.color : "#777", padding: "11px 18px",
+                  fontSize: 13, fontWeight: active ? 600 : 400, cursor: "pointer",
+                  textAlign: "left", display: "flex", alignItems: "center",
+                  justifyContent: "space-between", transition: "all 0.15s",
+                }}>
+                <span>{cat.label}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {lowCount > 0 && <span style={{ color: "#E07D52", fontSize: 11 }}>⚠</span>}
+                  {count > 0 && <span style={{ background: "#2a2a2a", color: "#555", borderRadius: 20, padding: "1px 7px", fontSize: 11 }}>{count}</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Category content */}
+        <div style={{ flex: 1, padding: "24px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: currentDiv?.color, margin: 0 }}>
+                {currentCat?.label}
+              </h2>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+                {catItems(activeTab, currentCatKey).length} items · tracked in {currentCat?.unit}
+              </div>
             </div>
-            {openDiv[div.key] ? <ChevronUp size={16} color="#555" /> : <ChevronDown size={16} color="#555" />}
+            <button onClick={openAdd}
+              style={{ background: `${currentDiv?.color}18`, border: `1px solid ${currentDiv?.color}44`, color: currentDiv?.color, borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+              <Plus size={14} /> Add {currentCat?.label}
+            </button>
           </div>
 
-          {/* Categories */}
-          {openDiv[div.key] && (
-            <div style={{ padding: "20px 24px" }}>
-              {div.categories.map(cat => {
-                const catItems = itemsFor(div.key, cat.key);
-                return (
-                  <div key={cat.key} style={{ marginBottom: 28 }}>
-                    {/* Category header */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 13, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>
-                          {cat.label}
-                        </span>
-                        <span style={{ fontSize: 11, color: "#444" }}>({cat.unit})</span>
+          {/* Thread — table view */}
+          {currentCat?.tableView ? (
+            <div>
+              {/* Search + summary */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+                  <Search size={14} color="#555" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+                  <input value={threadSearch} onChange={e => setThreadSearch(e.target.value)}
+                    placeholder="Search by name or colour number..."
+                    style={{ ...inputStyle, paddingLeft: 36 }} />
+                </div>
+                <div style={{ fontSize: 12, color: "#555" }}>
+                  {filteredThread.length} of {threadItems.length} shown
+                  {threadItems.filter(isLow).length > 0 && (
+                    <span style={{ color: "#E07D52", marginLeft: 8 }}>· ⚠ {threadItems.filter(isLow).length} low</span>
+                  )}
+                </div>
+              </div>
+
+              {filteredThread.length === 0 ? (
+                <div style={{ color: "#333", fontSize: 14, textAlign: "center", padding: "60px 0", fontStyle: "italic" }}>
+                  {threadItems.length === 0 ? "No thread added yet — click Add Thread to get started" : "No results match your search"}
+                </div>
+              ) : (
+                <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+                  {/* Table header */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", background: "#111", padding: "10px 16px", gap: 12 }}>
+                    {[
+                      { label: "Name / Colour", col: "name" },
+                      { label: "Colour #", col: null },
+                      { label: "Qty", col: "qty" },
+                      { label: "Threshold", col: null },
+                      { label: "Notes", col: null },
+                      { label: "", col: null },
+                    ].map((h, i) => (
+                      <div key={i}
+                        onClick={h.col ? () => toggleSort(h.col) : undefined}
+                        style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, cursor: h.col ? "pointer" : "default", userSelect: "none" }}>
+                        {h.label}
+                        {h.col && <SortIcon col={h.col} />}
                       </div>
-                      <button
-                        onClick={() => openAdd(div, cat)}
-                        style={{
-                          background: `${div.color}18`, border: `1px solid ${div.color}44`,
-                          color: div.color, borderRadius: 8, padding: "5px 12px",
-                          fontSize: 12, fontWeight: 600, cursor: "pointer",
-                          display: "flex", alignItems: "center", gap: 5,
-                        }}
-                      >
-                        <Plus size={12} /> Add
-                      </button>
-                    </div>
-
-                    {catItems.length === 0 ? (
-                      <div style={{ color: "#333", fontSize: 13, fontStyle: "italic", paddingLeft: 4 }}>
-                        No items yet — click Add to stock this category
-                      </div>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-                        {catItems.map(item => {
-                          const low = isLow(item);
-                          return (
-                            <div key={item.id} style={{
-                              background: "#111", border: `1px solid ${low ? "#E07D5244" : "#1f1f1f"}`,
-                              borderRadius: 12, padding: "14px 16px",
-                              borderLeft: `3px solid ${low ? "#E07D52" : div.color}`,
-                            }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                                <div>
-                                  <div style={{ fontSize: 13, color: "#F0F0F0", fontWeight: 600 }}>{item.name}</div>
-                                  {item.colourNumber && (
-                                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Colour #{item.colourNumber}</div>
-                                  )}
-                                </div>
-                                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                                  <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
-                                    style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 2 }}>
-                                    <Pencil size={13} />
-                                  </button>
-                                  <button onClick={() => handleDelete(item.id)}
-                                    style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 2 }}>
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Qty display */}
-                              <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
-                                <span style={{ fontSize: 24, fontWeight: 700, color: low ? "#E07D52" : div.color, fontFamily: "'Playfair Display', serif" }}>
-                                  {fmt(item.qty)}
-                                </span>
-                                <span style={{ fontSize: 11, color: "#555" }}>{cat.unit}</span>
-                                {item.metres !== null && item.metres !== undefined && (
-                                  <span style={{ fontSize: 11, color: "#555", marginLeft: 4 }}>· {fmt(item.metres)}m</span>
-                                )}
-                                {item.weight !== null && item.weight !== undefined && (
-                                  <span style={{ fontSize: 11, color: "#555", marginLeft: 4 }}>· {fmt(item.weight)}kg</span>
-                                )}
-                              </div>
-
-                              {low && (
-                                <div style={{ fontSize: 11, color: "#E07D52", fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                                  <AlertTriangle size={11} /> Low stock
-                                </div>
-                              )}
-
-                              {item.notes && (
-                                <div style={{ fontSize: 11, color: "#444", marginBottom: 8, fontStyle: "italic" }}>{item.notes}</div>
-                              )}
-
-                              {/* Adjust buttons */}
-                              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                                <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
-                                  style={{ flex: 1, background: `${div.color}18`, border: `1px solid ${div.color}33`, color: div.color, borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                                  + Stock In
-                                </button>
-                                <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
-                                  style={{ flex: 1, background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 7, padding: "6px 0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                                  − Used
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                );
-              })}
+
+                  {/* Rows */}
+                  {filteredThread.map((item, idx) => {
+                    const low = isLow(item);
+                    return (
+                      <div key={item.id}
+                        style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", padding: "12px 16px", gap: 12, alignItems: "center", borderTop: idx === 0 ? "none" : "1px solid #1f1f1f", background: low ? "#E07D520a" : "transparent" }}>
+                        <div>
+                          <span style={{ fontSize: 13, color: "#F0F0F0", fontWeight: 500 }}>{item.name}</span>
+                          {low && <span style={{ marginLeft: 8, fontSize: 10, color: "#E07D52", fontWeight: 700 }}>⚠ LOW</span>}
+                        </div>
+                        <div style={{ fontSize: 13, color: "#777" }}>{item.colourNumber || "—"}</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif" }}>{fmt(item.qty)}</div>
+                        <div style={{ fontSize: 12, color: "#555" }}>{item.lowStockThreshold ?? 2}</div>
+                        <div style={{ fontSize: 12, color: "#555", fontStyle: "italic", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.notes || "—"}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
+                            title="Stock In"
+                            style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}33`, color: currentDiv.color, borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+</button>
+                          <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
+                            title="Used"
+                            style={{ background: "#111", border: "1px solid #2a2a2a", color: "#777", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>−</button>
+                          <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
+                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id)}
+                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Non-thread — clean list cards */
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {catItems(activeTab, currentCatKey).length === 0 ? (
+                <div style={{ color: "#333", fontSize: 14, textAlign: "center", padding: "60px 0", fontStyle: "italic" }}>
+                  No {currentCat?.label} added yet — click the button above to add
+                </div>
+              ) : (
+                catItems(activeTab, currentCatKey).map(item => (
+                  <SmallItemCard key={item.id} item={item} />
+                ))
+              )}
             </div>
           )}
         </div>
-      ))}
+      </div>
 
       {/* ── Add Modal ── */}
       {addModal && (
         <div style={overlay} onClick={() => setAddModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setAddModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}>
-              <X size={18} />
-            </button>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: addModal.division.color, margin: "0 0 22px" }}>
-              Add {addModal.category.label}
+            <button onClick={() => setAddModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}><X size={18} /></button>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: currentDiv.color, margin: "0 0 22px" }}>
+              Add {currentCat?.label}
             </h2>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={label}>{addModal.category.trackColour ? "Colour Name / Number" : "Name"}</label>
-                <input style={input} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder={addModal.category.trackColour ? "e.g. 304" : addModal.category.label} />
+                <label style={labelStyle}>{currentCat?.trackColour ? "Name / Label" : "Name"}</label>
+                <input style={inputStyle} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder={currentCat?.trackColour ? "e.g. Red, Royal Blue, 304..." : currentCat?.label} autoFocus />
               </div>
-
-              {addModal.category.trackColour && (
+              {currentCat?.trackColour && (
                 <div>
-                  <label style={label}>Colour Number (optional)</label>
-                  <input style={input} value={form.colourNumber} onChange={e => setForm(p => ({ ...p, colourNumber: e.target.value }))} placeholder="e.g. 304" />
+                  <label style={labelStyle}>Colour Number (optional)</label>
+                  <input style={inputStyle} value={form.colourNumber} onChange={e => setForm(p => ({ ...p, colourNumber: e.target.value }))} placeholder="e.g. 304" />
                 </div>
               )}
-
               <div>
-                <label style={label}>Quantity ({addModal.category.unit})</label>
-                <input style={input} type="number" min="0" value={form.qty} onChange={e => setForm(p => ({ ...p, qty: e.target.value }))} placeholder="0" />
+                <label style={labelStyle}>Quantity ({currentCat?.unit})</label>
+                <input style={inputStyle} type="number" min="0" value={form.qty} onChange={e => setForm(p => ({ ...p, qty: e.target.value }))} placeholder="0" />
               </div>
-
-              {addModal.category.trackMetres && (
+              {currentCat?.trackMetres && (
                 <div>
-                  <label style={label}>Metres per roll / total metres</label>
-                  <input style={input} type="number" min="0" value={form.metres} onChange={e => setForm(p => ({ ...p, metres: e.target.value }))} placeholder="0" />
+                  <label style={labelStyle}>Metres</label>
+                  <input style={inputStyle} type="number" min="0" value={form.metres} onChange={e => setForm(p => ({ ...p, metres: e.target.value }))} placeholder="0" />
                 </div>
               )}
-
-              {addModal.category.trackWeight && (
+              {currentCat?.trackWeight && (
                 <div>
-                  <label style={label}>Weight (kg)</label>
-                  <input style={input} type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} placeholder="0" />
+                  <label style={labelStyle}>Weight (kg)</label>
+                  <input style={inputStyle} type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} placeholder="0" />
                 </div>
               )}
-
               <div>
-                <label style={label}>Low Stock Alert Threshold</label>
-                <input style={input} type="number" min="0" value={form.lowStockThreshold} onChange={e => setForm(p => ({ ...p, lowStockThreshold: e.target.value }))} placeholder="2" />
+                <label style={labelStyle}>Low Stock Alert Threshold</label>
+                <input style={inputStyle} type="number" min="0" value={form.lowStockThreshold} onChange={e => setForm(p => ({ ...p, lowStockThreshold: e.target.value }))} placeholder="2" />
               </div>
-
               <div>
-                <label style={label}>Notes (optional)</label>
-                <input style={input} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Any extra info..." />
+                <label style={labelStyle}>Notes (optional)</label>
+                <input style={inputStyle} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Any extra info..." />
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-              <button onClick={() => setAddModal(null)} style={btn("#222", "#888")}>Cancel</button>
-              <button onClick={handleAdd} disabled={saving} style={btn(addModal.division.color)}>
-                {saving ? "Saving..." : "Add Item"}
-              </button>
+              <button onClick={() => setAddModal(null)} style={btnStyle("#222", "#888")}>Cancel</button>
+              <button onClick={handleAdd} disabled={saving} style={btnStyle(currentDiv.color)}>{saving ? "Saving..." : "Add Item"}</button>
             </div>
           </div>
         </div>
@@ -408,51 +480,43 @@ export default function Supplies() {
       {editModal && (
         <div style={overlay} onClick={() => setEditModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setEditModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}>
-              <X size={18} />
-            </button>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: "#C9A84C", margin: "0 0 22px" }}>
-              Edit Item
-            </h2>
-
+            <button onClick={() => setEditModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}><X size={18} /></button>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: currentDiv?.color || "#C9A84C", margin: "0 0 22px" }}>Edit Item</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={label}>Name</label>
-                <input style={input} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+                <label style={labelStyle}>Name</label>
+                <input style={inputStyle} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               </div>
               {editModal.colourNumber !== undefined && (
                 <div>
-                  <label style={label}>Colour Number</label>
-                  <input style={input} value={form.colourNumber} onChange={e => setForm(p => ({ ...p, colourNumber: e.target.value }))} />
+                  <label style={labelStyle}>Colour Number</label>
+                  <input style={inputStyle} value={form.colourNumber} onChange={e => setForm(p => ({ ...p, colourNumber: e.target.value }))} />
                 </div>
               )}
               {editModal.metres !== null && editModal.metres !== undefined && (
                 <div>
-                  <label style={label}>Metres</label>
-                  <input style={input} type="number" min="0" value={form.metres} onChange={e => setForm(p => ({ ...p, metres: e.target.value }))} />
+                  <label style={labelStyle}>Metres</label>
+                  <input style={inputStyle} type="number" min="0" value={form.metres} onChange={e => setForm(p => ({ ...p, metres: e.target.value }))} />
                 </div>
               )}
               {editModal.weight !== null && editModal.weight !== undefined && (
                 <div>
-                  <label style={label}>Weight (kg)</label>
-                  <input style={input} type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} />
+                  <label style={labelStyle}>Weight (kg)</label>
+                  <input style={inputStyle} type="number" min="0" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))} />
                 </div>
               )}
               <div>
-                <label style={label}>Low Stock Threshold</label>
-                <input style={input} type="number" min="0" value={form.lowStockThreshold} onChange={e => setForm(p => ({ ...p, lowStockThreshold: e.target.value }))} />
+                <label style={labelStyle}>Low Stock Threshold</label>
+                <input style={inputStyle} type="number" min="0" value={form.lowStockThreshold} onChange={e => setForm(p => ({ ...p, lowStockThreshold: e.target.value }))} />
               </div>
               <div>
-                <label style={label}>Notes</label>
-                <input style={input} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+                <label style={labelStyle}>Notes</label>
+                <input style={inputStyle} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
-              <button onClick={() => setEditModal(null)} style={btn("#222", "#888")}>Cancel</button>
-              <button onClick={handleEdit} disabled={saving} style={btn("#C9A84C")}>
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
+              <button onClick={() => setEditModal(null)} style={btnStyle("#222", "#888")}>Cancel</button>
+              <button onClick={handleEdit} disabled={saving} style={btnStyle("#C9A84C")}>{saving ? "Saving..." : "Save Changes"}</button>
             </div>
           </div>
         </div>
@@ -462,48 +526,36 @@ export default function Supplies() {
       {adjustModal && (
         <div style={overlay} onClick={() => setAdjustModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setAdjustModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}>
-              <X size={18} />
-            </button>
+            <button onClick={() => setAdjustModal(null)} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: "#555", cursor: "pointer" }}><X size={18} /></button>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: adjustType === "add" ? "#52C97A" : "#E07D52", margin: "0 0 6px" }}>
               {adjustType === "add" ? "Stock In" : "Mark as Used"}
             </h2>
-            <p style={{ color: "#555", fontSize: 13, margin: "0 0 22px" }}>
-              {adjustModal.name} — current stock: <strong style={{ color: "#F0F0F0" }}>{fmt(adjustModal.qty)}</strong>
+            <p style={{ color: "#555", fontSize: 13, margin: "0 0 20px" }}>
+              {adjustModal.name}{adjustModal.colourNumber ? ` (#${adjustModal.colourNumber})` : ""} — current: <strong style={{ color: "#F0F0F0" }}>{fmt(adjustModal.qty)}</strong>
             </p>
-
             <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-              <button onClick={() => setAdjustType("add")}
-                style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid", borderColor: adjustType === "add" ? "#52C97A" : "#2a2a2a", background: adjustType === "add" ? "#52C97A18" : "#111", color: adjustType === "add" ? "#52C97A" : "#555" }}>
-                + Stock In
-              </button>
-              <button onClick={() => setAdjustType("use")}
-                style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid", borderColor: adjustType === "use" ? "#E07D52" : "#2a2a2a", background: adjustType === "use" ? "#E07D5218" : "#111", color: adjustType === "use" ? "#E07D52" : "#555" }}>
-                − Used / Consumed
-              </button>
+              {["add", "use"].map(t => (
+                <button key={t} onClick={() => setAdjustType(t)}
+                  style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid", borderColor: adjustType === t ? (t === "add" ? "#52C97A" : "#E07D52") : "#2a2a2a", background: adjustType === t ? (t === "add" ? "#52C97A18" : "#E07D5218") : "#111", color: adjustType === t ? (t === "add" ? "#52C97A" : "#E07D52") : "#555" }}>
+                  {t === "add" ? "+ Stock In" : "− Used / Consumed"}
+                </button>
+              ))}
             </div>
-
             <div style={{ marginBottom: 14 }}>
-              <label style={label}>Quantity</label>
-              <input style={input} type="number" min="0.01" step="0.01" value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter amount..." autoFocus />
+              <label style={labelStyle}>Quantity</label>
+              <input style={inputStyle} type="number" min="0.01" step="0.01" value={adjustQty} onChange={e => setAdjustQty(e.target.value)} placeholder="Enter amount..." autoFocus />
             </div>
-
             {adjustQty && (
               <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>
-                <span style={{ color: "#555" }}>New stock level: </span>
+                <span style={{ color: "#555" }}>New level: </span>
                 <strong style={{ color: adjustType === "add" ? "#52C97A" : "#E07D52" }}>
-                  {fmt(adjustType === "add"
-                    ? (adjustModal.qty || 0) + parseFloat(adjustQty || 0)
-                    : Math.max(0, (adjustModal.qty || 0) - parseFloat(adjustQty || 0))
-                  )}
+                  {fmt(adjustType === "add" ? (adjustModal.qty || 0) + parseFloat(adjustQty || 0) : Math.max(0, (adjustModal.qty || 0) - parseFloat(adjustQty || 0)))}
                 </strong>
               </div>
             )}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-              <button onClick={() => setAdjustModal(null)} style={btn("#222", "#888")}>Cancel</button>
-              <button onClick={handleAdjust} disabled={saving || !adjustQty}
-                style={btn(adjustType === "add" ? "#52C97A" : "#E07D52")}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setAdjustModal(null)} style={btnStyle("#222", "#888")}>Cancel</button>
+              <button onClick={handleAdjust} disabled={saving || !adjustQty} style={btnStyle(adjustType === "add" ? "#52C97A" : "#E07D52")}>
                 {saving ? "Saving..." : "Confirm"}
               </button>
             </div>
