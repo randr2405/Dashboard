@@ -13,11 +13,12 @@ import { useAuth } from "../context/AuthContext";
 import { Plus, X, RotateCcw, Shield, User } from "lucide-react";
 
 const ROLES = [
-  { value: "admin", label: "Admin", desc: "Full access to everything" },
-  { value: "print", label: "Print Division", desc: "Print/DTF/Vinyl only" },
-  { value: "it", label: "IT Division", desc: "IT Company division only" },
-  { value: "clothing", label: "Clothing Division", desc: "Clothing brand only" },
-  { value: "hr", label: "HR Only", desc: "HR & Payroll access only" },
+  { value: "admin",    label: "Admin",            desc: "Full access to everything" },
+  { value: "print",    label: "Print Division",   desc: "Print/DTF/Vinyl only" },
+  { value: "it",       label: "IT Division",      desc: "IT Company division only" },
+  { value: "clothing", label: "Clothing Division",desc: "Clothing brand only" },
+  { value: "hr",       label: "HR Only",          desc: "HR & Payroll access only" },
+  { value: "staff",    label: "Staff",            desc: "View print orders & artwork, no pricing" },
 ];
 
 const inp = {
@@ -33,7 +34,7 @@ const lbl = {
 
 const roleColors = {
   admin: "#C9A84C", print: "#E8A838", it: "#52A9E0",
-  clothing: "#9B7DE8", hr: "#52C97A"
+  clothing: "#9B7DE8", hr: "#52C97A", staff: "#E07B52"
 };
 
 export default function Settings() {
@@ -130,7 +131,6 @@ export default function Settings() {
             }}><Plus size={15} /> Add User</button>
           </div>
 
-          {/* Current user banner */}
           <div style={{
             background: "#C9A84C12", border: "1px solid #C9A84C33",
             borderRadius: 12, padding: "14px 20px", marginBottom: 16,
@@ -159,7 +159,6 @@ export default function Settings() {
                   borderRadius: 14, padding: "18px 22px",
                   display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap"
                 }}>
-                  {/* Avatar */}
                   <div style={{
                     width: 40, height: 40, borderRadius: "50%",
                     background: (roleColors[u.role] || "#C9A84C") + "22",
@@ -170,7 +169,6 @@ export default function Settings() {
                     <User size={18} color={roleColors[u.role] || "#C9A84C"} />
                   </div>
 
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontWeight: 600, color: "#F0F0F0", fontSize: 15 }}>
                       {u.displayName || u.email}
@@ -179,7 +177,6 @@ export default function Settings() {
                     <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{u.email}</div>
                   </div>
 
-                  {/* Role selector */}
                   <select
                     value={u.role}
                     disabled={isMe}
@@ -196,23 +193,18 @@ export default function Settings() {
                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
 
-                  {/* Actions */}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      onClick={() => handleResetPassword(u)}
-                      title="Send password reset email"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid " + (resetSent[u.id] ? "#52C97A" : "#333"),
-                        borderRadius: 8, color: resetSent[u.id] ? "#52C97A" : "#666",
-                        cursor: "pointer", padding: "7px 12px", fontSize: 12,
-                        display: "flex", alignItems: "center", gap: 6,
-                        fontFamily: "'DM Sans', sans-serif"
-                      }}>
+                    <button onClick={() => handleResetPassword(u)} style={{
+                      background: "transparent",
+                      border: "1px solid " + (resetSent[u.id] ? "#52C97A" : "#333"),
+                      borderRadius: 8, color: resetSent[u.id] ? "#52C97A" : "#666",
+                      cursor: "pointer", padding: "7px 12px", fontSize: 12,
+                      display: "flex", alignItems: "center", gap: 6,
+                      fontFamily: "'DM Sans', sans-serif"
+                    }}>
                       <RotateCcw size={12} />
                       {resetSent[u.id] ? "Sent!" : "Reset PW"}
                     </button>
-
                     {!isMe && (
                       <button onClick={() => handleDeleteUser(u)} style={{
                         background: "transparent", border: "1px solid #E05252",
@@ -245,31 +237,12 @@ export default function Settings() {
               <div style={{ fontSize: 11, color: "#444", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
                 Access
               </div>
-              {r.value === "admin" && (
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ✅ Dashboard · Orders · HR · Contracts · All Divisions · Settings
-                </div>
-              )}
-              {r.value === "print" && (
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ✅ Dashboard · Orders (Print) · Print Division
-                </div>
-              )}
-              {r.value === "it" && (
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ✅ Dashboard · Orders (IT) · IT Division
-                </div>
-              )}
-              {r.value === "clothing" && (
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ✅ Dashboard · Orders (Clothing) · Clothing Division
-                </div>
-              )}
-              {r.value === "hr" && (
-                <div style={{ fontSize: 13, color: "#888" }}>
-                  ✅ HR & Payroll · Contracts
-                </div>
-              )}
+              {r.value === "admin" && <div style={{ fontSize: 13, color: "#888" }}>✅ Dashboard · Orders · HR · Contracts · All Divisions · Settings</div>}
+              {r.value === "print" && <div style={{ fontSize: 13, color: "#888" }}>✅ Dashboard · Orders (Print) · Print Division</div>}
+              {r.value === "it" && <div style={{ fontSize: 13, color: "#888" }}>✅ Dashboard · Orders (IT) · IT Division</div>}
+              {r.value === "clothing" && <div style={{ fontSize: 13, color: "#888" }}>✅ Dashboard · Orders (Clothing) · Clothing Division</div>}
+              {r.value === "hr" && <div style={{ fontSize: 13, color: "#888" }}>✅ HR & Payroll · Contracts</div>}
+              {r.value === "staff" && <div style={{ fontSize: 13, color: "#888" }}>✅ Production Orders (Print only) · Artwork files · Stage updates · No pricing</div>}
               <div style={{
                 marginTop: 12, fontSize: 12, color: "#555",
                 borderTop: "1px solid #2a2a2a", paddingTop: 10
@@ -308,7 +281,7 @@ export default function Settings() {
                 <label style={lbl}>Display Name</label>
                 <input value={form.displayName}
                   onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))}
-                  placeholder="e.g. Rhea" style={inp} />
+                  placeholder="e.g. Natasha" style={inp} />
               </div>
               <div>
                 <label style={lbl}>Email Address</label>
