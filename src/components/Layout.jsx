@@ -3,21 +3,12 @@ import { Navigate, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 const roleAccess = {
-  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/customers", "/division/print", "/division/it", "/division/clothing"],
-  print:    ["/", "/orders", "/customers", "/division/print"],
-  it:       ["/", "/orders", "/customers", "/division/it"],
-  clothing: ["/", "/orders", "/customers", "/division/clothing"],
-  hr:       ["/", "/hr", "/contracts", "/customers"],
+  admin:    ["/", "/orders", "/hr", "/contracts", "/settings", "/division/print", "/division/it", "/division/clothing", "/customers", "/quotes", "/invoices"],
+  print:    ["/", "/orders", "/division/print", "/customers"],
+  it:       ["/", "/orders", "/division/it", "/customers"],
+  clothing: ["/", "/orders", "/division/clothing", "/customers"],
+  hr:       ["/", "/hr", "/contracts"],
   staff:    ["/staff-orders"],
-};
-
-const roleHome = {
-  admin:    "/",
-  print:    "/",
-  it:       "/",
-  clothing: "/",
-  hr:       "/",
-  staff:    "/staff-orders",
 };
 
 export default function Layout({ children }) {
@@ -26,22 +17,15 @@ export default function Layout({ children }) {
 
   if (!user) return <Navigate to="/login" />;
 
-  const role    = userRole || "admin";
-  const home    = roleHome[role] || "/";
+  const allowed = roleAccess[userRole || "admin"] || ["/"];
+  const path = location.pathname;
 
-  // Staff (and any role whose home isn't "/") should never see "/"
-  if (location.pathname === "/" && home !== "/") {
-    return <Navigate to={home} replace />;
-  }
+  const hasAccess = allowed.some(p => path === p || path.startsWith(p + "/"));
 
-  const allowed = roleAccess[role] || ["/"];
-  const path    = location.pathname;
+  // Staff landing on / → redirect to their page
+  if (userRole === "staff" && path === "/") return <Navigate to="/staff-orders" />;
 
-  const hasAccess = allowed.some(p =>
-    path === p || path.startsWith(p + "/")
-  );
-
-  if (!hasAccess) return <Navigate to={home} replace />;
+  if (!hasAccess) return <Navigate to="/" />;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0D0D0D" }}>
@@ -53,7 +37,7 @@ export default function Layout({ children }) {
         fontFamily: "'DM Sans', sans-serif",
         color: "#F0F0F0",
         minHeight: "100vh",
-        boxSizing: "border-box",
+        boxSizing: "border-box"
       }}>
         {children}
       </main>
