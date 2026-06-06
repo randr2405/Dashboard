@@ -6,7 +6,6 @@ import {
 import { db } from "../firebase";
 import { Plus, X, Download, Printer, ArrowRight, Trash2, Search } from "lucide-react";
 
-// ── Trading entity config ─────────────────────────────────────────────────────
 const ENTITIES = {
   print: {
     name:       "R&R Agencies",
@@ -38,7 +37,6 @@ const DIVISIONS = [
   { value: "clothing", label: "Clothing Brand" },
 ];
 
-// clothing uses print entity
 function getEntity(division) {
   return ENTITIES[division] || ENTITIES.print;
 }
@@ -76,7 +74,6 @@ function makeEmpty() {
   };
 }
 
-// ── PDF/Print HTML builder ────────────────────────────────────────────────────
 function buildQuoteHTML(quote, totals) {
   const entity = getEntity(quote.division);
   const statusLabel = { draft: "", sent: "SENT", accepted: "ACCEPTED", declined: "DECLINED", invoiced: "INVOICED" }[quote.status] || "";
@@ -180,15 +177,13 @@ function buildQuoteHTML(quote, totals) {
   </body></html>`;
 }
 
-// ── Totals calculator ─────────────────────────────────────────────────────────
 function calcTotals(lines, includeVat) {
   const subtotal = lines.reduce((s, l) => s + (parseFloat(l.qty || 0) * parseFloat(l.unitPrice || 0)), 0);
   const vat      = includeVat ? subtotal * 0.15 : 0;
   return { subtotal, vat, total: subtotal + vat };
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-export default function Quotes({ onConvertToOrder }) {
+export default function Quotes({ onConvertToInvoice }) {
   const [quotes, setQuotes]       = useState([]);
   const [customers, setCustomers] = useState([]);
   const [showForm, setShowForm]   = useState(false);
@@ -288,7 +283,7 @@ export default function Quotes({ onConvertToOrder }) {
   }
 
   function handleConvert(q) {
-    if (onConvertToOrder) onConvertToOrder(q);
+    if (onConvertToInvoice) onConvertToInvoice(q);
   }
 
   const filtered = quotes.filter(q => {
@@ -303,7 +298,6 @@ export default function Quotes({ onConvertToOrder }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
@@ -320,7 +314,6 @@ export default function Quotes({ onConvertToOrder }) {
         }}><Plus size={16} /> New Quote</button>
       </div>
 
-      {/* Search + Status Filter */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555" }} />
@@ -339,7 +332,6 @@ export default function Quotes({ onConvertToOrder }) {
         ))}
       </div>
 
-      {/* Quotes list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#444" }}>No quotes found</div>
@@ -378,7 +370,6 @@ export default function Quotes({ onConvertToOrder }) {
         })}
       </div>
 
-      {/* ── Detail Modal ── */}
       {selectedQuote && (() => {
         const totals = calcTotals(selectedQuote.lines || [], selectedQuote.includeVat);
         const sc     = STATUS_COLORS[selectedQuote.status] || "#666";
@@ -411,7 +402,6 @@ export default function Quotes({ onConvertToOrder }) {
                 {selectedQuote.client} · {DIVISIONS.find(d => d.value === selectedQuote.division)?.label}
               </p>
 
-              {/* Status update */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Update Status</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -427,7 +417,6 @@ export default function Quotes({ onConvertToOrder }) {
                 </div>
               </div>
 
-              {/* Line items */}
               <div style={{ background: "#111", borderRadius: 10, overflow: "hidden", marginBottom: 20 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
@@ -450,7 +439,6 @@ export default function Quotes({ onConvertToOrder }) {
                 </table>
               </div>
 
-              {/* Totals */}
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
                 <div style={{ width: 240 }}>
                   {[
@@ -469,7 +457,6 @@ export default function Quotes({ onConvertToOrder }) {
                 </div>
               </div>
 
-              {/* Actions */}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={() => openEdit(selectedQuote)} style={{
                   flex: 1, background: "#C9A84C", color: "#0D0D0D", border: "none",
@@ -487,10 +474,10 @@ export default function Quotes({ onConvertToOrder }) {
                   display: "flex", alignItems: "center", gap: 6, fontFamily: "'DM Sans', sans-serif",
                 }}><Download size={13} /> Download</button>
                 <button onClick={() => handleConvert(selectedQuote)} style={{
-                  background: "transparent", border: "1px solid #52C97A", borderRadius: 8,
-                  color: "#52C97A", cursor: "pointer", padding: "10px 14px", fontSize: 13,
+                  background: "transparent", border: "1px solid #52A9E0", borderRadius: 8,
+                  color: "#52A9E0", cursor: "pointer", padding: "10px 14px", fontSize: 13,
                   display: "flex", alignItems: "center", gap: 6, fontFamily: "'DM Sans', sans-serif",
-                }}><ArrowRight size={13} /> Convert to Order</button>
+                }}><ArrowRight size={13} /> Convert to Invoice</button>
                 <button onClick={() => handleDelete(selectedQuote.id)} style={{
                   background: "transparent", border: "1px solid #E05252", borderRadius: 8,
                   color: "#E05252", cursor: "pointer", padding: "10px 14px", fontSize: 13,
@@ -502,7 +489,6 @@ export default function Quotes({ onConvertToOrder }) {
         );
       })()}
 
-      {/* ── New / Edit Form Modal ── */}
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
@@ -543,7 +529,6 @@ export default function Quotes({ onConvertToOrder }) {
                 <input type="date" value={form.dueDate} onChange={e => setField("dueDate", e.target.value)} style={inp} />
               </div>
 
-              {/* Client autocomplete */}
               <div style={{ gridColumn: "1/-1", position: "relative" }}>
                 <label style={lbl}>Client Name</label>
                 <input
@@ -584,7 +569,6 @@ export default function Quotes({ onConvertToOrder }) {
               ))}
             </div>
 
-            {/* Line items */}
             <div style={{ marginTop: 24 }}>
               <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Line Items</div>
               <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 120px 40px", gap: 8, marginBottom: 8 }}>
@@ -610,7 +594,6 @@ export default function Quotes({ onConvertToOrder }) {
               }}>+ Add Line</button>
             </div>
 
-            {/* VAT toggle + totals preview */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 20, gap: 16, flexWrap: "wrap" }}>
               <div>
                 <label style={lbl}>VAT</label>
