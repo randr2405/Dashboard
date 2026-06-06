@@ -33,6 +33,20 @@ const lbl = {
 
 const emptyForm = { name: "", contact: "", phone: "", email: "", division: "", notes: "" };
 
+const mobileStyles = `
+  @media (max-width: 600px) {
+    .cust-header { flex-direction: column !important; gap: 12px !important; }
+    .cust-header button { width: 100% !important; justify-content: center !important; }
+    .cust-filters { gap: 8px !important; }
+    .cust-filters > div { min-width: 0 !important; width: 100% !important; }
+    .cust-filters button { padding: 7px 10px !important; font-size: 11px !important; }
+    .cust-grid { grid-template-columns: 1fr !important; }
+    .cust-modal-inner { padding: 20px !important; margin: 12px !important; max-height: 92vh !important; overflow-y: auto !important; }
+    .cust-form-grid { grid-template-columns: 1fr !important; }
+    .cust-form-grid > div[style*="1/-1"] { grid-column: 1 !important; }
+  }
+`;
+
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders]       = useState([]);
@@ -108,8 +122,10 @@ export default function Customers() {
 
   return (
     <div>
+      <style>{mobileStyles}</style>
+
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div className="cust-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
             Customers
@@ -128,28 +144,30 @@ export default function Customers() {
       </div>
 
       {/* Search + Division Filter */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div className="cust-filters" style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name, email, phone..."
             style={{ ...inp, paddingLeft: 36 }} />
         </div>
-        {["all", "print", "it", "clothing", ""].map(f => (
-          <button key={f} onClick={() => setDivFilter(f)} style={{
-            background: divFilter === f ? "#C9A84C" : "#1A1A1A",
-            color:      divFilter === f ? "#0D0D0D" : "#888",
-            border:     "1px solid " + (divFilter === f ? "#C9A84C" : "#333"),
-            borderRadius: 20, padding: "8px 16px", fontSize: 12, fontWeight: 600,
-            cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-          }}>
-            {f === "all" ? "All" : DIVISIONS.find(d => d.value === f)?.label || "Unknown"}
-          </button>
-        ))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {["all", "print", "it", "clothing", ""].map(f => (
+            <button key={f} onClick={() => setDivFilter(f)} style={{
+              background: divFilter === f ? "#C9A84C" : "#1A1A1A",
+              color:      divFilter === f ? "#0D0D0D" : "#888",
+              border:     "1px solid " + (divFilter === f ? "#C9A84C" : "#333"),
+              borderRadius: 20, padding: "8px 16px", fontSize: 12, fontWeight: 600,
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}>
+              {f === "all" ? "All" : DIVISIONS.find(d => d.value === f)?.label || "Unknown"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Customers Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+      <div className="cust-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {filtered.length === 0 ? (
           <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 0", color: "#444" }}>
             No customers found
@@ -205,9 +223,9 @@ export default function Customers() {
       {selectedCustomer && (
         <div onClick={() => setSelected(null)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
-          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div className="cust-modal-inner" onClick={e => e.stopPropagation()} style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
             width: "100%", maxWidth: 480, padding: 32, position: "relative",
           }}>
@@ -260,9 +278,9 @@ export default function Customers() {
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
-          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div className="cust-modal-inner" onClick={e => e.stopPropagation()} style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
             width: "100%", maxWidth: 520, padding: 32, position: "relative",
           }}>
@@ -275,7 +293,7 @@ export default function Customers() {
               {editingId ? "Edit Customer" : "New Customer"}
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="cust-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Customer / Company Name</label>
                 <input value={form.name} onChange={e => setField("name", e.target.value)} style={inp} placeholder="e.g. Acme Corp" />

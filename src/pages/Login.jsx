@@ -26,12 +26,14 @@ export default function Login() {
   return (
     <div style={{
       minHeight: "100vh", background: "#0D0D0D", display: "flex",
-      alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif"
+      alignItems: "center", justifyContent: "center",
+      fontFamily: "'DM Sans', sans-serif", padding: "16px",
     }}>
       <div style={{
         background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
         padding: "48px 40px", width: "100%", maxWidth: 420,
-        boxShadow: "0 8px 48px rgba(201,168,76,0.1)"
+        boxShadow: "0 8px 48px rgba(201,168,76,0.1)",
+        boxSizing: "border-box",
       }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <h1 style={{
@@ -60,7 +62,7 @@ export default function Login() {
               style={{
                 width: "100%", background: "#111", border: "1px solid #333", borderRadius: 8,
                 color: "#F0F0F0", fontSize: 14, padding: "10px 14px", outline: "none",
-                boxSizing: "border-box"
+                boxSizing: "border-box",
               }}
             />
           </div>
@@ -74,7 +76,7 @@ export default function Login() {
               style={{
                 width: "100%", background: "#111", border: "1px solid #333", borderRadius: 8,
                 color: "#F0F0F0", fontSize: 14, padding: "10px 14px", outline: "none",
-                boxSizing: "border-box"
+                boxSizing: "border-box",
               }}
             />
           </div>
@@ -83,7 +85,7 @@ export default function Login() {
             width: "100%", background: "#C9A84C", color: "#0D0D0D", border: "none",
             borderRadius: 8, padding: "12px", fontSize: 15, fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1,
-            fontFamily: "'DM Sans', sans-serif"
+            fontFamily: "'DM Sans', sans-serif",
           }}>
             {loading ? "Signing in..." : "Sign In"}
           </button>

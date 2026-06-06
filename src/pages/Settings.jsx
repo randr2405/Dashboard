@@ -91,6 +91,18 @@ export default function Settings() {
 
   return (
     <div>
+      <style>{`
+        @media (max-width: 640px) {
+          .settings-header-row { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+          .user-card { flex-wrap: wrap !important; gap: 10px !important; }
+          .user-card-actions { width: 100% !important; justify-content: flex-end !important; }
+          .user-role-select { width: 100% !important; }
+          .roles-grid { grid-template-columns: 1fr !important; }
+          .add-user-modal { padding: 20px !important; }
+          .tab-bar { width: 100% !important; }
+        }
+      `}</style>
+
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
           Settings
@@ -101,7 +113,7 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div style={{
+      <div className="tab-bar" style={{
         display: "flex", gap: 4, marginBottom: 28, background: "#1A1A1A",
         borderRadius: 10, padding: 4, width: "fit-content", border: "1px solid #2a2a2a"
       }}>
@@ -120,7 +132,7 @@ export default function Settings() {
       {/* USERS TAB */}
       {tab === "users" && (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div className="settings-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div style={{ color: "#555", fontSize: 13 }}>
               {users.length} user{users.length !== 1 ? "s" : ""} · Logged in as <span style={{ color: "#C9A84C" }}>{user?.email}</span>
             </div>
@@ -152,9 +164,8 @@ export default function Settings() {
               </div>
             ) : users.map(u => {
               const isMe = u.id === user?.uid;
-              const roleInfo = ROLES.find(r => r.value === u.role) || ROLES[0];
               return (
-                <div key={u.id} style={{
+                <div key={u.id} className="user-card" style={{
                   background: "#1A1A1A", border: "1px solid " + (isMe ? "#C9A84C44" : "#2a2a2a"),
                   borderRadius: 14, padding: "18px 22px",
                   display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap"
@@ -169,7 +180,7 @@ export default function Settings() {
                     <User size={18} color={roleColors[u.role] || "#C9A84C"} />
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ flex: 1, minWidth: 140 }}>
                     <div style={{ fontWeight: 600, color: "#F0F0F0", fontSize: 15 }}>
                       {u.displayName || u.email}
                       {isMe && <span style={{ color: "#C9A84C", fontSize: 11, marginLeft: 8 }}>(you)</span>}
@@ -181,6 +192,7 @@ export default function Settings() {
                     value={u.role}
                     disabled={isMe}
                     onChange={e => handleRoleChange(u, e.target.value)}
+                    className="user-role-select"
                     style={{
                       background: (roleColors[u.role] || "#C9A84C") + "18",
                       border: "1px solid " + (roleColors[u.role] || "#C9A84C") + "44",
@@ -193,7 +205,7 @@ export default function Settings() {
                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
 
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="user-card-actions" style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => handleResetPassword(u)} style={{
                       background: "transparent",
                       border: "1px solid " + (resetSent[u.id] ? "#52C97A" : "#333"),
@@ -223,7 +235,7 @@ export default function Settings() {
 
       {/* ROLES TAB */}
       {tab === "roles" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        <div className="roles-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {ROLES.map(r => (
             <div key={r.value} style={{
               background: "#1A1A1A", border: "1px solid #2a2a2a", borderRadius: 14,
@@ -258,11 +270,13 @@ export default function Settings() {
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
-          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center"
+          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "16px"
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div onClick={e => e.stopPropagation()} className="add-user-modal" style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
-            width: "100%", maxWidth: 480, padding: 32, position: "relative"
+            width: "100%", maxWidth: 480, padding: 32, position: "relative",
+            maxHeight: "90vh", overflowY: "auto"
           }}>
             <button onClick={() => setShowForm(false)} style={{
               position: "absolute", top: 16, right: 16, background: "transparent",

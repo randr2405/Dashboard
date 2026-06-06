@@ -36,6 +36,21 @@ const lbl = {
   textTransform: "uppercase", letterSpacing: 1, marginBottom: 5
 };
 
+const mobileStyles = `
+  @media (max-width: 600px) {
+    .cont-header { flex-direction: column !important; gap: 12px !important; }
+    .cont-header button { width: 100% !important; justify-content: center !important; }
+    .cont-grid { grid-template-columns: 1fr !important; }
+    .cont-card-actions { flex-direction: column !important; }
+    .cont-card-actions button { width: 100% !important; justify-content: center !important; }
+    .cont-modal-inner { padding: 20px !important; margin: 12px !important; max-height: 92vh !important; }
+    .cont-form-grid { grid-template-columns: 1fr !important; }
+    .cont-pay-toggle { flex-direction: column !important; }
+    .cont-modal-actions { flex-direction: column !important; }
+    .cont-modal-actions button { width: 100% !important; justify-content: center !important; }
+  }
+`;
+
 function buildContractHTML(c, forDownload = false) {
   const divLabel      = DIVISIONS.find(d => d.value === c.division)?.label || c.division;
   const contractLabel = CONTRACT_TYPES.find(t => t.value === c.contractType)?.label || c.contractType;
@@ -55,7 +70,6 @@ function buildContractHTML(c, forDownload = false) {
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'DM Sans',sans-serif;background:#F4F3EF;padding:40px 20px;color:#1C1917;line-height:1.75;font-size:14px}
     .wrap{background:#fff;max-width:800px;margin:0 auto;box-shadow:0 4px 32px rgba(0,0,0,0.12)}
-    /* Header */
     .header{background:#1B1B1B;padding:40px 48px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start}
     .header-left h1{font-family:'Playfair Display',serif;font-size:26px;color:#C9A84C;margin-bottom:4px;letter-spacing:.5px}
     .header-left p{font-size:12px;color:#666;margin-bottom:2px}
@@ -64,36 +78,27 @@ function buildContractHTML(c, forDownload = false) {
     .header-right .doc-title{font-size:13px;color:#888;text-transform:uppercase;letter-spacing:2px}
     .header-right .doc-date{font-size:13px;color:#C9A84C;font-weight:600;margin-top:6px}
     .badge{display:inline-block;background:#C9A84C22;border:1px solid #C9A84C55;color:#C9A84C;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.08em;margin-top:10px}
-    /* Body */
     .body{padding:44px 48px}
     .doc-heading{font-family:'Playfair Display',serif;font-size:24px;color:#1B1B1B;margin-bottom:6px}
     .doc-intro{font-size:13px;color:#888;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #F0EDE6}
-    /* Parties box */
     .parties-box{background:#F7F6F2;border:1px solid #E8E5DF;border-radius:10px;padding:24px 28px;margin-bottom:32px}
     .parties-box h3{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#A8A29E;margin-bottom:16px}
     .parties-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .party-item label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A8A29E;display:block;margin-bottom:3px}
     .party-item span{font-size:14px;color:#1C1917;font-weight:500}
-    /* Sections */
     .section{margin-bottom:28px}
     .section-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:#1B1B1B;padding:8px 16px;border-radius:4px;margin-bottom:16px;display:inline-block}
     .section p{color:#44403C;margin-bottom:10px;text-align:justify}
     .section ul{padding-left:20px;color:#44403C;margin-bottom:10px}
     .section ul li{margin-bottom:6px}
-    /* Terms grid */
     .terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
     .term-box{background:#F7F6F2;border:1px solid #E8E5DF;border-radius:8px;padding:12px 16px}
     .term-box label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#A8A29E;display:block;margin-bottom:3px}
     .term-box span{font-size:14px;color:#1C1917;font-weight:600}
-    /* Highlight box */
     .highlight{background:#1B1B1B;border-radius:10px;padding:18px 24px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
     .highlight .pay-label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px}
     .highlight .pay-value{font-size:22px;font-weight:700;color:#C9A84C;margin-top:2px}
     .highlight .pay-type{font-size:12px;color:#555;margin-top:4px}
-    /* Numbered clauses */
-    .clause{margin-bottom:18px;padding-left:0}
-    .clause-num{font-weight:700;color:#1B1B1B;margin-right:8px}
-    /* Signatures */
     .sig-section{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-top:48px;padding-top:32px;border-top:2px solid #F0EDE6}
     .sig-box .sig-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A8A29E;margin-bottom:40px;display:block}
     .sig-line{border-top:1.5px solid #1C1917;padding-top:8px}
@@ -102,23 +107,16 @@ function buildContractHTML(c, forDownload = false) {
     .sig-date{margin-top:20px}
     .sig-date .sig-label2{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A8A29E;display:block;margin-bottom:6px}
     .sig-date .date-line{border-top:1px solid #ccc;width:160px;padding-top:6px;font-size:11px;color:#A8A29E}
-    /* Footer */
     .footer{background:#F7F6F2;border-top:1px solid #E8E5DF;padding:16px 48px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#A8A29E}
-    /* Buttons */
     .btn-bar{display:flex;gap:12px;margin:28px auto 0;max-width:800px;justify-content:center}
     .btn{padding:11px 28px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;display:flex;align-items:center;gap:8px}
     .btn-print{background:#1B1B1B;color:#C9A84C}
     .btn-dl{background:#C9A84C;color:#1B1B1B}
-    @media print{
-      body{padding:0;background:#fff}
-      .wrap{box-shadow:none}
-      .btn-bar{display:none}
-    }
+    @media print{body{padding:0;background:#fff}.wrap{box-shadow:none}.btn-bar{display:none}}
   </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- HEADER -->
   <div class="header">
     <div class="header-left">
       <h1>R&amp;R Agencies</h1>
@@ -131,17 +129,9 @@ function buildContractHTML(c, forDownload = false) {
       <div class="doc-date">${today}</div>
     </div>
   </div>
-
-  <!-- BODY -->
   <div class="body">
     <div class="doc-heading">Contract of Employment</div>
-    <p class="doc-intro">
-      This Contract of Employment ("Agreement") is entered into between <strong>R AND R Agencies (Pty) Ltd</strong>
-      ("the Employer") and the employee identified below ("the Employee"), and sets out the terms and conditions
-      of employment agreed upon by both parties.
-    </p>
-
-    <!-- PARTIES -->
+    <p class="doc-intro">This Contract of Employment ("Agreement") is entered into between <strong>R AND R Agencies (Pty) Ltd</strong> ("the Employer") and the employee identified below ("the Employee"), and sets out the terms and conditions of employment agreed upon by both parties.</p>
     <div class="parties-box">
       <h3>Parties to this Agreement</h3>
       <div class="parties-grid">
@@ -152,8 +142,6 @@ function buildContractHTML(c, forDownload = false) {
         <div class="party-item" style="grid-column:1/-1"><label>Residential Address</label><span>${c.address || "—"}</span></div>
       </div>
     </div>
-
-    <!-- REMUNERATION HIGHLIGHT -->
     <div class="highlight">
       <div>
         <div class="pay-label">Agreed Remuneration</div>
@@ -165,8 +153,6 @@ function buildContractHTML(c, forDownload = false) {
         <div style="font-size:15px;font-weight:700;color:#fff;margin-top:4px">${contractLabel}</div>
       </div>
     </div>
-
-    <!-- SECTION 1: APPOINTMENT -->
     <div class="section">
       <div class="section-title">1. Appointment &amp; Commencement</div>
       <div class="terms-grid">
@@ -177,156 +163,50 @@ function buildContractHTML(c, forDownload = false) {
         <div class="term-box"><label>Hours per Week</label><span>${c.hoursPerWeek || 40} hours</span></div>
         <div class="term-box"><label>Probation Period</label><span>${c.probation || "N/A"}</span></div>
       </div>
-      <p>The Employee is appointed to the position of <strong>${c.role || "[Position]"}</strong> within the <strong>${divLabel}</strong> division, reporting to the relevant line manager or director as designated from time to time.</p>
-      ${c.contractType === "fixedterm" ? `<p>This is a fixed-term contract commencing on <strong>${c.startDate || "[start date]"}</strong> and terminating on <strong>${c.endDate || "[end date]"}</strong>, unless terminated earlier in accordance with the provisions of this Agreement.</p>` : ""}
-      ${c.probation ? `<p>The Employee will serve a probationary period of <strong>${c.probation}</strong> from the commencement date, during which performance and suitability for the role will be assessed. Either party may terminate this Agreement during probation with one (1) week's written notice.</p>` : ""}
+      <p>The Employee is appointed to the position of <strong>${c.role || "[Position]"}</strong> within the <strong>${divLabel}</strong> division.</p>
     </div>
-
-    <!-- SECTION 2: REMUNERATION -->
     <div class="section">
       <div class="section-title">2. Remuneration &amp; Benefits</div>
-      ${isHourly ? `
-      <p>The Employee will be remunerated at a rate of <strong>R ${parseFloat(c.hourlyRate || 0).toFixed(2)} per hour</strong>, calculated based on actual hours worked. Payment will be made monthly by the last working day of each month via electronic funds transfer to the Employee's nominated bank account.</p>
-      <p>Overtime worked beyond the agreed <strong>${c.hoursPerWeek || 40} hours per week</strong> will be compensated at a rate of <strong>1.5× the standard hourly rate</strong>, subject to prior written authorisation from management.</p>
-      ` : `
-      <p>The Employee will receive a gross monthly salary of <strong>R ${parseFloat(c.salary || 0).toFixed(2)}</strong>, payable by the last working day of each calendar month via electronic funds transfer to the Employee's nominated bank account.</p>
-      <p>The salary is inclusive of all statutory deductions. Any overtime must be pre-approved in writing and will be compensated as agreed between the parties.</p>
-      `}
-      ${(c.bankName || c.bankAccount) ? `
-      <div class="terms-grid">
-        ${c.bankName ? `<div class="term-box"><label>Bank Name</label><span>${c.bankName}</span></div>` : ""}
-        ${c.bankAccount ? `<div class="term-box"><label>Account Number</label><span>${c.bankAccount}</span></div>` : ""}
-        ${c.bankBranch ? `<div class="term-box"><label>Branch Code</label><span>${c.bankBranch}</span></div>` : ""}
-      </div>` : ""}
-      <p>The Employer reserves the right to review remuneration annually, with any adjustments communicated in writing. No adjustment shall be made unilaterally to the Employee's detriment without mutual written agreement.</p>
+      ${isHourly ? `<p>The Employee will be remunerated at a rate of <strong>R ${parseFloat(c.hourlyRate || 0).toFixed(2)} per hour</strong>, paid monthly.</p>` : `<p>The Employee will receive a gross monthly salary of <strong>R ${parseFloat(c.salary || 0).toFixed(2)}</strong>, payable by the last working day of each calendar month.</p>`}
     </div>
-
-    <!-- SECTION 3: LEAVE -->
     <div class="section">
       <div class="section-title">3. Leave Entitlement</div>
       <div class="terms-grid">
         <div class="term-box"><label>Annual Leave</label><span>${c.leaveDays || 15} days per year</span></div>
         <div class="term-box"><label>Sick Leave</label><span>As per company policy</span></div>
-        <div class="term-box"><label>Family Responsibility</label><span>3 days per year</span></div>
-        <div class="term-box"><label>Public Holidays</label><span>All gazetted public holidays</span></div>
       </div>
-      <p>Annual leave must be taken at a time mutually agreed upon between the Employer and Employee. Leave may not be accumulated indefinitely and must be taken within the relevant leave cycle. The Employer reserves the right to direct the Employee to take leave during operational shutdowns.</p>
-      <p>Sick leave will be granted in accordance with company policy. A medical certificate may be required for absences exceeding two (2) consecutive days.</p>
     </div>
-
-    <!-- SECTION 4: DUTIES -->
-    ${c.duties ? `
     <div class="section">
-      <div class="section-title">4. Duties &amp; Responsibilities</div>
-      <p>The Employee is required to perform the following duties and responsibilities, as well as any other reasonable tasks assigned by management from time to time:</p>
-      <ul>${c.duties.split("\n").filter(Boolean).map(d => `<li>${d.trim()}</li>`).join("")}</ul>
-    </div>` : `
-    <div class="section">
-      <div class="section-title">4. Duties &amp; Responsibilities</div>
-      <p>The Employee shall perform all duties associated with the role of <strong>${c.role || "[Position]"}</strong> and such other reasonable duties as may be assigned by the Employer from time to time. The Employee is expected to carry out all duties diligently, professionally, and to the best of their ability.</p>
-    </div>`}
-
-    <!-- SECTION 5: NOTICE & TERMINATION -->
-    <div class="section">
-      <div class="section-title">5. Notice Period &amp; Termination</div>
-      <div class="terms-grid" style="margin-bottom:16px">
-        <div class="term-box"><label>Notice Period</label><span>${c.noticePeriod || "1 month"}</span></div>
-        <div class="term-box"><label>Notice Format</label><span>Written notice required</span></div>
-      </div>
-      <p>Either party may terminate this Agreement by giving the other party <strong>${c.noticePeriod || "1 month"}</strong> written notice. Notice must be delivered in person or via email to the relevant party's last known address or email.</p>
-      <p>The Employer reserves the right to terminate this Agreement without notice in the event of serious misconduct, gross negligence, dishonesty, or any other act that renders continuation of the employment relationship intolerable.</p>
-      <p>Upon termination, the Employee shall return all company property, equipment, access cards, and confidential materials immediately. The Employee's final remuneration will be calculated up to the last working day.</p>
+      <div class="section-title">4. Notice Period &amp; Termination</div>
+      <p>Either party may terminate this Agreement by giving <strong>${c.noticePeriod || "1 month"}</strong> written notice.</p>
     </div>
-
-    <!-- SECTION 6: CONFIDENTIALITY -->
     <div class="section">
-      <div class="section-title">6. Confidentiality &amp; Intellectual Property</div>
-      <p>The Employee acknowledges that during the course of employment they may have access to confidential information, including but not limited to: client lists, pricing structures, business strategies, proprietary processes, and financial information belonging to R AND R Agencies (Pty) Ltd.</p>
-      <p>The Employee agrees not to disclose, share, or use any such confidential information for personal gain or to the benefit of any third party, both during and after the term of this employment. This obligation survives the termination of this Agreement.</p>
-      <p>Any work, inventions, designs, or intellectual property created by the Employee in the course of their duties shall remain the sole property of R AND R Agencies (Pty) Ltd.</p>
+      <div class="section-title">5. Confidentiality &amp; General</div>
+      <p>This Agreement constitutes the entire agreement between the parties and shall be governed by the laws of the Republic of South Africa.</p>
     </div>
-
-    <!-- SECTION 7: CONDUCT -->
-    <div class="section">
-      <div class="section-title">7. Conduct &amp; Disciplinary</div>
-      <p>The Employee agrees to abide by the Employer's workplace policies, code of conduct, and any reasonable rules or instructions issued from time to time. The Employee is expected to maintain professional conduct at all times, including in interactions with clients, suppliers, and colleagues.</p>
-      <p>Disciplinary matters will be handled in accordance with the company's disciplinary procedure, which affords the Employee the right to be heard before any disciplinary action is taken, except in cases of summary dismissal for gross misconduct.</p>
-    </div>
-
-    <!-- SECTION 8: GENERAL -->
-    <div class="section">
-      <div class="section-title">8. General Provisions</div>
-      <p>This Agreement constitutes the entire agreement between the parties with respect to the subject matter hereof and supersedes all prior agreements, representations, or understandings, whether written or oral.</p>
-      <p>No amendment or variation of this Agreement shall be of any force or effect unless it is in writing and signed by both parties.</p>
-      <p>Should any provision of this Agreement be found to be invalid, unlawful, or unenforceable, such provision shall be severable from the remaining provisions which shall continue to be valid and enforceable.</p>
-      <p>This Agreement shall be governed by and construed in accordance with the laws of the Republic of South Africa.</p>
-    </div>
-
-    <!-- SPECIAL CLAUSES -->
-    ${c.specialClauses ? `
-    <div class="section">
-      <div class="section-title">9. Special Conditions</div>
-      ${c.specialClauses.split("\n").filter(Boolean).map(cl => `<p>${cl.trim()}</p>`).join("")}
-    </div>` : ""}
-
-    <!-- SIGNATURES -->
+    ${c.specialClauses ? `<div class="section"><div class="section-title">6. Special Conditions</div>${c.specialClauses.split("\n").filter(Boolean).map(cl => `<p>${cl.trim()}</p>`).join("")}</div>` : ""}
     <div class="sig-section">
       <div class="sig-box">
         <span class="sig-label">For and on behalf of the Employer</span>
-        <div class="sig-line">
-          <div class="sig-name">R AND R Agencies (Pty) Ltd</div>
-          <div class="sig-sub">Authorised Signatory</div>
-        </div>
-        <div class="sig-date">
-          <span class="sig-label2">Date</span>
-          <div class="date-line">____________________</div>
-        </div>
+        <div class="sig-line"><div class="sig-name">R AND R Agencies (Pty) Ltd</div><div class="sig-sub">Authorised Signatory</div></div>
+        <div class="sig-date"><span class="sig-label2">Date</span><div class="date-line">____________________</div></div>
       </div>
       <div class="sig-box">
         <span class="sig-label">Employee Acceptance</span>
-        <div class="sig-line">
-          <div class="sig-name">${c.employeeName || "Employee"}</div>
-          <div class="sig-sub">${c.role || "Position"} · ${divLabel}</div>
-        </div>
-        <div class="sig-date">
-          <span class="sig-label2">Date</span>
-          <div class="date-line">____________________</div>
-        </div>
+        <div class="sig-line"><div class="sig-name">${c.employeeName || "Employee"}</div><div class="sig-sub">${c.role || "Position"} · ${divLabel}</div></div>
+        <div class="sig-date"><span class="sig-label2">Date</span><div class="date-line">____________________</div></div>
       </div>
     </div>
-
-    <p style="margin-top:32px;font-size:12px;color:#A8A29E;text-align:center">
-      By signing above, both parties confirm they have read, understood, and agreed to the terms of this Employment Contract.
-    </p>
+    <p style="margin-top:32px;font-size:12px;color:#A8A29E;text-align:center">By signing above, both parties confirm they have read, understood, and agreed to the terms of this Employment Contract.</p>
   </div>
-
-  <!-- FOOTER -->
   <div class="footer">
     <span>R AND R Agencies (Pty) Ltd · Employment Contract</span>
     <span>${c.employeeName} · ${c.role}</span>
     <span>Generated ${today} · Confidential</span>
   </div>
 </div>
-
-${forDownload ? "" : `
-<div class="btn-bar">
-  <button class="btn btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
-  <button class="btn btn-dl" onclick="downloadContract()">⬇️ Download HTML</button>
-</div>
-<script>
-function downloadContract() {
-  const html = document.documentElement.outerHTML;
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'Contract_${(c.employeeName || "Employee").replace(/\s+/g, "_")}_${today.replace(/\s+/g, "_")}.html';
-  a.click();
-  URL.revokeObjectURL(url);
-}
-<\/script>`}
-</body>
-</html>`;
+${forDownload ? "" : `<div class="btn-bar"><button class="btn btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button></div>`}
+</body></html>`;
 }
 
 function openContract(c) {
@@ -398,8 +278,10 @@ export default function Contracts() {
 
   return (
     <div>
+      <style>{mobileStyles}</style>
+
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div className="cont-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
             Contracts
@@ -424,7 +306,7 @@ export default function Contracts() {
           No contracts yet — generate your first employment contract
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div className="cont-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
           {contracts.map(c => (
             <div key={c.id} style={{
               background: "#1A1A1A", border: "1px solid #2a2a2a", borderRadius: 14,
@@ -478,7 +360,7 @@ export default function Contracts() {
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="cont-card-actions" style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => openContract(c)} style={{
                   flex: 1, background: "transparent", border: "1px solid #333",
                   borderRadius: 8, color: "#888", cursor: "pointer", padding: "9px",
@@ -501,9 +383,9 @@ export default function Contracts() {
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
-          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center"
+          zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div className="cont-modal-inner" onClick={e => e.stopPropagation()} style={{
             background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
             width: "100%", maxWidth: 700, maxHeight: "92vh", overflowY: "auto",
             padding: 32, position: "relative"
@@ -517,7 +399,6 @@ export default function Contracts() {
               {editingId ? "Edit Contract" : "New Employment Contract"}
             </h2>
 
-            {/* Auto-fill from employee */}
             <div style={{ marginBottom: 20 }}>
               <label style={lbl}>Auto-fill from existing employee (optional)</label>
               <select onChange={e => {
@@ -528,7 +409,7 @@ export default function Contracts() {
                   employeeName: emp.name || "",
                   role: emp.role || "",
                   division: emp.division || "print",
-                  salary: emp.salary || emp.payType === "monthly" ? (emp.salary || "") : "",
+                  salary: emp.payType === "monthly" ? (emp.salary || "") : "",
                   hourlyRate: emp.hourlyRate || "",
                   payType: emp.payType || "monthly",
                   idNumber: emp.idNumber || "",
@@ -540,9 +421,7 @@ export default function Contracts() {
               </select>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-
-              {/* Basic info */}
+            <div className="cont-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               {[
                 ["employeeName", "Employee Full Name", "text"],
                 ["idNumber",     "ID Number",          "text"],
@@ -574,10 +453,9 @@ export default function Contracts() {
                 </select>
               </div>
 
-              {/* Pay type */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Pay Type</label>
-                <div style={{ display: "flex", gap: 10 }}>
+                <div className="cont-pay-toggle" style={{ display: "flex", gap: 10 }}>
                   {["monthly", "hourly"].map(pt => (
                     <button key={pt} onClick={() => setField("payType", pt)} style={{
                       flex: 1, background: form.payType === pt ? "#C9A84C22" : "#111",
@@ -602,14 +480,12 @@ export default function Contracts() {
                 </div>
               )}
 
-              {/* Address */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Residential Address</label>
                 <textarea value={form.address || ""} onChange={e => setField("address", e.target.value)}
                   rows={2} style={{ ...inp, resize: "vertical" }} />
               </div>
 
-              {/* Banking details */}
               <div style={{ gridColumn: "1/-1", paddingTop: 8, borderTop: "1px solid #222" }}>
                 <label style={{ ...lbl, marginBottom: 12 }}>Banking Details (optional)</label>
               </div>
@@ -624,14 +500,12 @@ export default function Contracts() {
                 </div>
               ))}
 
-              {/* Duties */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Key Duties &amp; Responsibilities</label>
                 <textarea value={form.duties || ""} onChange={e => setField("duties", e.target.value)}
                   rows={4} placeholder="One duty per line..." style={{ ...inp, resize: "vertical" }} />
               </div>
 
-              {/* Special clauses */}
               <div style={{ gridColumn: "1/-1" }}>
                 <label style={lbl}>Special Conditions / Clauses</label>
                 <textarea value={form.specialClauses || ""} onChange={e => setField("specialClauses", e.target.value)}
@@ -639,8 +513,7 @@ export default function Contracts() {
               </div>
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+            <div className="cont-modal-actions" style={{ display: "flex", gap: 12, marginTop: 24 }}>
               <button onClick={handleSave} disabled={saving} style={{
                 flex: 1, background: "#C9A84C", color: "#0D0D0D", border: "none",
                 borderRadius: 8, padding: "13px", fontSize: 15, fontWeight: 700,

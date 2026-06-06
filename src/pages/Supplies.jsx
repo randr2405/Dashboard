@@ -68,6 +68,7 @@ export default function Supplies() {
   const [items, setItems] = useState([]);
   const [activeTab, setActiveTab] = useState("embroidery");
   const [activeCat, setActiveCat] = useState({});
+  const [showCatMenu, setShowCatMenu] = useState(false);
   const [addModal, setAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
@@ -76,7 +77,7 @@ export default function Supplies() {
   const [adjustType, setAdjustType] = useState("add");
   const [saving, setSaving] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
-  const [threadSort, setThreadSort] = useState("name"); // name | qty
+  const [threadSort, setThreadSort] = useState("name");
   const [threadSortDir, setThreadSortDir] = useState("asc");
 
   useEffect(() => {
@@ -163,9 +164,9 @@ export default function Supplies() {
   const modal = {
     background: "#1A1A1A", border: "1px solid #2a2a2a", borderRadius: 16,
     padding: 28, width: "100%", maxWidth: 440, position: "relative",
+    maxHeight: "90vh", overflowY: "auto",
   };
 
-  // ── Thread table sorted/filtered
   const threadItems = catItems(activeTab, "thread");
   const filteredThread = threadItems
     .filter(i => !threadSearch || i.name?.toLowerCase().includes(threadSearch.toLowerCase()) || i.colourNumber?.includes(threadSearch))
@@ -187,7 +188,6 @@ export default function Supplies() {
     return threadSortDir === "asc" ? <ChevronUp size={12} color="#C9A84C" /> : <ChevronDown size={12} color="#C9A84C" />;
   };
 
-  // ── Small card for non-thread categories
   function SmallItemCard({ item }) {
     const low = isLow(item);
     return (
@@ -197,29 +197,25 @@ export default function Supplies() {
         borderLeft: `3px solid ${low ? "#E07D52" : currentDiv.color}`,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       }}>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 14, color: "#F0F0F0", fontWeight: 600 }}>{item.name}</div>
           {item.notes && <div style={{ fontSize: 11, color: "#444", marginTop: 2, fontStyle: "italic" }}>{item.notes}</div>}
           {low && <div style={{ fontSize: 11, color: "#E07D52", fontWeight: 600, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={11} /> Low stock</div>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 26, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{fmt(item.qty)}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{fmt(item.qty)}</div>
             <div style={{ fontSize: 11, color: "#555" }}>
               {currentCat?.unit}
               {item.metres != null && ` · ${fmt(item.metres)}m`}
               {item.weight != null && ` · ${fmt(item.weight)}kg`}
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
-              style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}44`, color: currentDiv.color, borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-              + In
-            </button>
+              style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}44`, color: currentDiv.color, borderRadius: 7, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+</button>
             <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
-              style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              − Used
-            </button>
+              style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", borderRadius: 7, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>−</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
@@ -238,6 +234,24 @@ export default function Supplies() {
 
   return (
     <div>
+      <style>{`
+        @media (max-width: 640px) {
+          .supplies-div-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; }
+          .supplies-div-tabs::-webkit-scrollbar { display: none; }
+          .supplies-div-tabs button { flex-shrink: 0; padding: 12px 16px !important; font-size: 13px !important; }
+          .supplies-content-panel { flex-direction: column !important; }
+          .supplies-cat-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid #2a2a2a; padding: 8px 0 !important; display: none !important; }
+          .supplies-cat-sidebar.open { display: block !important; }
+          .supplies-cat-mobile-toggle { display: flex !important; }
+          .supplies-thread-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .supplies-thread-table-inner { min-width: 520px; }
+          .supplies-content-area { padding: 16px !important; }
+        }
+        @media (min-width: 641px) {
+          .supplies-cat-mobile-toggle { display: none !important; }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
@@ -254,12 +268,12 @@ export default function Supplies() {
       )}
 
       {/* Division tabs */}
-      <div style={{ display: "flex", gap: 0, marginBottom: 0, borderBottom: "1px solid #2a2a2a" }}>
+      <div className="supplies-div-tabs" style={{ display: "flex", gap: 0, marginBottom: 0, borderBottom: "1px solid #2a2a2a" }}>
         {DIVISIONS.map(div => {
           const divLow = items.filter(i => i.division === div.key && isLow(i)).length;
           const active = activeTab === div.key;
           return (
-            <button key={div.key} onClick={() => setActiveTab(div.key)}
+            <button key={div.key} onClick={() => { setActiveTab(div.key); setShowCatMenu(false); }}
               style={{
                 background: active ? "#1A1A1A" : "transparent",
                 border: "none", borderBottom: active ? `2px solid ${div.color}` : "2px solid transparent",
@@ -280,17 +294,28 @@ export default function Supplies() {
       </div>
 
       {/* Content panel */}
-      <div style={{ background: "#1A1A1A", border: "1px solid #2a2a2a", borderTop: "none", borderRadius: "0 0 16px 16px", display: "flex", minHeight: 500 }}>
+      <div className="supplies-content-panel" style={{ background: "#1A1A1A", border: "1px solid #2a2a2a", borderTop: "none", borderRadius: "0 0 16px 16px", display: "flex", minHeight: 500 }}>
+
+        {/* Mobile category toggle */}
+        <div className="supplies-cat-mobile-toggle" style={{ padding: "12px 16px", borderBottom: "1px solid #2a2a2a", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={() => setShowCatMenu(v => !v)} style={{
+            background: `${currentDiv?.color}18`, border: `1px solid ${currentDiv?.color}44`,
+            color: currentDiv?.color, borderRadius: 8, padding: "8px 16px", fontSize: 13,
+            fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+          }}>
+            {currentCat?.label} <ChevronDown size={14} />
+          </button>
+        </div>
 
         {/* Category sidebar */}
-        <div style={{ width: 200, borderRight: "1px solid #2a2a2a", padding: "16px 0", flexShrink: 0 }}>
+        <div className={`supplies-cat-sidebar${showCatMenu ? " open" : ""}`} style={{ width: 200, borderRight: "1px solid #2a2a2a", padding: "16px 0", flexShrink: 0 }}>
           {currentDiv?.categories.map(cat => {
             const count = catItems(currentDiv.key, cat.key).length;
             const lowCount = catItems(currentDiv.key, cat.key).filter(isLow).length;
             const active = currentCatKey === cat.key;
             return (
               <button key={cat.key}
-                onClick={() => setActiveCat(p => ({ ...p, [activeTab]: cat.key }))}
+                onClick={() => { setActiveCat(p => ({ ...p, [activeTab]: cat.key })); setShowCatMenu(false); }}
                 style={{
                   width: "100%", background: active ? `${currentDiv.color}12` : "transparent",
                   border: "none", borderRight: active ? `2px solid ${currentDiv.color}` : "2px solid transparent",
@@ -310,8 +335,8 @@ export default function Supplies() {
         </div>
 
         {/* Category content */}
-        <div style={{ flex: 1, padding: "24px 28px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div className="supplies-content-area" style={{ flex: 1, padding: "24px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: currentDiv?.color, margin: 0 }}>
                 {currentCat?.label}
@@ -329,15 +354,14 @@ export default function Supplies() {
           {/* Thread — table view */}
           {currentCat?.tableView ? (
             <div>
-              {/* Search + summary */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
                   <Search size={14} color="#555" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
                   <input value={threadSearch} onChange={e => setThreadSearch(e.target.value)}
                     placeholder="Search by name or colour number..."
                     style={{ ...inputStyle, paddingLeft: 36 }} />
                 </div>
-                <div style={{ fontSize: 12, color: "#555" }}>
+                <div style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>
                   {filteredThread.length} of {threadItems.length} shown
                   {threadItems.filter(isLow).length > 0 && (
                     <span style={{ color: "#E07D52", marginLeft: 8 }}>· ⚠ {threadItems.filter(isLow).length} low</span>
@@ -350,64 +374,64 @@ export default function Supplies() {
                   {threadItems.length === 0 ? "No thread added yet — click Add Thread to get started" : "No results match your search"}
                 </div>
               ) : (
-                <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #2a2a2a" }}>
-                  {/* Table header */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", background: "#111", padding: "10px 16px", gap: 12 }}>
-                    {[
-                      { label: "Name / Colour", col: "name" },
-                      { label: "Colour #", col: null },
-                      { label: "Qty", col: "qty" },
-                      { label: "Threshold", col: null },
-                      { label: "Notes", col: null },
-                      { label: "", col: null },
-                    ].map((h, i) => (
-                      <div key={i}
-                        onClick={h.col ? () => toggleSort(h.col) : undefined}
-                        style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, cursor: h.col ? "pointer" : "default", userSelect: "none" }}>
-                        {h.label}
-                        {h.col && <SortIcon col={h.col} />}
-                      </div>
-                    ))}
-                  </div>
+                <div className="supplies-thread-table" style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+                  <div className="supplies-thread-table-inner">
+                    {/* Table header */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", background: "#111", padding: "10px 16px", gap: 12 }}>
+                      {[
+                        { label: "Name / Colour", col: "name" },
+                        { label: "Colour #", col: null },
+                        { label: "Qty", col: "qty" },
+                        { label: "Threshold", col: null },
+                        { label: "Notes", col: null },
+                        { label: "", col: null },
+                      ].map((h, i) => (
+                        <div key={i}
+                          onClick={h.col ? () => toggleSort(h.col) : undefined}
+                          style={{ fontSize: 10, color: "#555", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, cursor: h.col ? "pointer" : "default", userSelect: "none" }}>
+                          {h.label}
+                          {h.col && <SortIcon col={h.col} />}
+                        </div>
+                      ))}
+                    </div>
 
-                  {/* Rows */}
-                  {filteredThread.map((item, idx) => {
-                    const low = isLow(item);
-                    return (
-                      <div key={item.id}
-                        style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", padding: "12px 16px", gap: 12, alignItems: "center", borderTop: idx === 0 ? "none" : "1px solid #1f1f1f", background: low ? "#E07D520a" : "transparent" }}>
-                        <div>
-                          <span style={{ fontSize: 13, color: "#F0F0F0", fontWeight: 500 }}>{item.name}</span>
-                          {low && <span style={{ marginLeft: 8, fontSize: 10, color: "#E07D52", fontWeight: 700 }}>⚠ LOW</span>}
+                    {filteredThread.map((item, idx) => {
+                      const low = isLow(item);
+                      return (
+                        <div key={item.id}
+                          style={{ display: "grid", gridTemplateColumns: "1fr 120px 90px 90px 160px 80px", padding: "12px 16px", gap: 12, alignItems: "center", borderTop: idx === 0 ? "none" : "1px solid #1f1f1f", background: low ? "#E07D520a" : "transparent" }}>
+                          <div>
+                            <span style={{ fontSize: 13, color: "#F0F0F0", fontWeight: 500 }}>{item.name}</span>
+                            {low && <span style={{ marginLeft: 8, fontSize: 10, color: "#E07D52", fontWeight: 700 }}>⚠ LOW</span>}
+                          </div>
+                          <div style={{ fontSize: 13, color: "#777" }}>{item.colourNumber || "—"}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif" }}>{fmt(item.qty)}</div>
+                          <div style={{ fontSize: 12, color: "#555" }}>{item.lowStockThreshold ?? 2}</div>
+                          <div style={{ fontSize: 12, color: "#555", fontStyle: "italic", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.notes || "—"}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
+                              title="Stock In"
+                              style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}33`, color: currentDiv.color, borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+</button>
+                            <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
+                              title="Used"
+                              style={{ background: "#111", border: "1px solid #2a2a2a", color: "#777", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>−</button>
+                            <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
+                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => handleDelete(item.id)}
+                              style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 13, color: "#777" }}>{item.colourNumber || "—"}</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: low ? "#E07D52" : currentDiv.color, fontFamily: "'Playfair Display', serif" }}>{fmt(item.qty)}</div>
-                        <div style={{ fontSize: 12, color: "#555" }}>{item.lowStockThreshold ?? 2}</div>
-                        <div style={{ fontSize: 12, color: "#555", fontStyle: "italic", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.notes || "—"}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <button onClick={() => { setAdjustModal(item); setAdjustType("add"); setAdjustQty(""); }}
-                            title="Stock In"
-                            style={{ background: `${currentDiv.color}18`, border: `1px solid ${currentDiv.color}33`, color: currentDiv.color, borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>+</button>
-                          <button onClick={() => { setAdjustModal(item); setAdjustType("use"); setAdjustQty(""); }}
-                            title="Used"
-                            style={{ background: "#111", border: "1px solid #2a2a2a", color: "#777", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>−</button>
-                          <button onClick={() => { setEditModal(item); setForm({ name: item.name, colourNumber: item.colourNumber || "", metres: item.metres ?? "", weight: item.weight ?? "", lowStockThreshold: item.lowStockThreshold || 2, notes: item.notes || "" }); }}
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
-                            <Pencil size={13} />
-                          </button>
-                          <button onClick={() => handleDelete(item.id)}
-                            style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: "3px 4px" }}>
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
           ) : (
-            /* Non-thread — clean list cards */
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {catItems(activeTab, currentCatKey).length === 0 ? (
                 <div style={{ color: "#333", fontSize: 14, textAlign: "center", padding: "60px 0", fontStyle: "italic" }}>
@@ -423,7 +447,7 @@ export default function Supplies() {
         </div>
       </div>
 
-      {/* ── Add Modal ── */}
+      {/* Add Modal */}
       {addModal && (
         <div style={overlay} onClick={() => setAddModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
@@ -476,7 +500,7 @@ export default function Supplies() {
         </div>
       )}
 
-      {/* ── Edit Modal ── */}
+      {/* Edit Modal */}
       {editModal && (
         <div style={overlay} onClick={() => setEditModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
@@ -522,7 +546,7 @@ export default function Supplies() {
         </div>
       )}
 
-      {/* ── Adjust Modal ── */}
+      {/* Adjust Modal */}
       {adjustModal && (
         <div style={overlay} onClick={() => setAdjustModal(null)}>
           <div style={modal} onClick={e => e.stopPropagation()}>
@@ -537,7 +561,7 @@ export default function Supplies() {
               {["add", "use"].map(t => (
                 <button key={t} onClick={() => setAdjustType(t)}
                   style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid", borderColor: adjustType === t ? (t === "add" ? "#52C97A" : "#E07D52") : "#2a2a2a", background: adjustType === t ? (t === "add" ? "#52C97A18" : "#E07D5218") : "#111", color: adjustType === t ? (t === "add" ? "#52C97A" : "#E07D52") : "#555" }}>
-                  {t === "add" ? "+ Stock In" : "− Used / Consumed"}
+                  {t === "add" ? "+ Stock In" : "− Used"}
                 </button>
               ))}
             </div>

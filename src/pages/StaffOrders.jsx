@@ -5,7 +5,6 @@ import {
 import { db } from "../firebase";
 import { Search, X, Image, Paperclip, Trash2, Calendar } from "lucide-react";
 
-// ── Stages (print only) ───────────────────────────────────────────────────────
 const PRINT_STAGES = [
   { key: "depositPaid",      label: "💰 Deposit Paid" },
   { key: "artworkApproved",  label: "🎨 Artwork Approved" },
@@ -73,7 +72,6 @@ export default function StaffOrders() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "orders"), snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Staff only sees print division
       setOrders(all.filter(o => o.division === "print"));
     });
     return unsub;
@@ -135,6 +133,20 @@ export default function StaffOrders() {
 
   return (
     <div>
+      <style>{`
+        @media (max-width: 640px) {
+          .staff-filter-bar { flex-direction: column !important; gap: 10px !important; }
+          .staff-filter-pills { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; padding-bottom: 4px; }
+          .staff-filter-pills::-webkit-scrollbar { display: none; }
+          .staff-month-pills { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; padding-bottom: 4px; }
+          .staff-month-pills::-webkit-scrollbar { display: none; }
+          .staff-orders-grid { grid-template-columns: 1fr !important; }
+          .staff-modal-inner { padding: 20px !important; max-height: 95vh !important; }
+          .staff-stages-wrap { gap: 6px !important; }
+          .staff-stage-btn { font-size: 11px !important; padding: 6px 10px !important; }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, color: "#C9A84C", margin: 0 }}>
@@ -146,14 +158,14 @@ export default function StaffOrders() {
       </div>
 
       {/* Month Filter */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        <Calendar size={13} style={{ color: "#555" }} />
+      <div className="staff-month-pills" style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Calendar size={13} style={{ color: "#555", flexShrink: 0 }} />
         <button onClick={() => setMonthFilter("all")} style={{
           background: monthFilter === "all" ? "#C9A84C22" : "transparent",
           color:  monthFilter === "all" ? "#C9A84C" : "#555",
           border: "1px solid " + (monthFilter === "all" ? "#C9A84C55" : "#2a2a2a"),
           borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: 600,
-          cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+          cursor: "pointer", fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
         }}>All Months</button>
         {availableMonths.map(mk => {
           const d = new Date(mk + "-01");
@@ -164,33 +176,36 @@ export default function StaffOrders() {
               color:  monthFilter === mk ? "#C9A84C" : "#555",
               border: "1px solid " + (monthFilter === mk ? "#C9A84C55" : "#2a2a2a"),
               borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: 600,
-              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
             }}>{label}</button>
           );
         })}
       </div>
 
       {/* Status Filter + Search */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div className="staff-filter-bar" style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#555" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search client or ref..."
             style={{ ...inp, paddingLeft: 36 }} />
         </div>
-        {["all", "new", "active", "production", "delivered", "complete"].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            background: filter === f ? "#C9A84C" : "#1A1A1A",
-            color:      filter === f ? "#0D0D0D" : "#888",
-            border:     "1px solid " + (filter === f ? "#C9A84C" : "#333"),
-            borderRadius: 20, padding: "8px 16px", fontSize: 12, fontWeight: 600,
-            cursor: "pointer", textTransform: "capitalize", fontFamily: "'DM Sans', sans-serif",
-          }}>{f === "all" ? "All" : statusLabels[f]}</button>
-        ))}
+        <div className="staff-filter-pills" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {["all", "new", "active", "production", "delivered", "complete"].map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              background: filter === f ? "#C9A84C" : "#1A1A1A",
+              color:      filter === f ? "#0D0D0D" : "#888",
+              border:     "1px solid " + (filter === f ? "#C9A84C" : "#333"),
+              borderRadius: 20, padding: "8px 16px", fontSize: 12, fontWeight: 600,
+              cursor: "pointer", textTransform: "capitalize", fontFamily: "'DM Sans', sans-serif",
+              flexShrink: 0,
+            }}>{f === "all" ? "All" : statusLabels[f]}</button>
+          ))}
+        </div>
       </div>
 
       {/* Orders Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+      <div className="staff-orders-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
         {filtered.length === 0 ? (
           <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 0", color: "#444" }}>
             No orders found
@@ -216,16 +231,13 @@ export default function StaffOrders() {
               </div>
 
               <div style={{ fontWeight: 600, fontSize: 16, color: "#F0F0F0", marginBottom: 4 }}>{j.client}</div>
-              <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>
-                {j.description}
-              </div>
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>{j.description}</div>
               {j.due && (
                 <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
                   Due: <span style={{ color: "#C9A84C" }}>{j.due}</span>
                 </div>
               )}
 
-              {/* Stage dots */}
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                 {steps.map((v, i) => (
                   <div key={i} style={{
@@ -237,9 +249,7 @@ export default function StaffOrders() {
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "#555" }}>
-                  {done} / {PRINT_STAGES.length} stages
-                </span>
+                <span style={{ fontSize: 12, color: "#555" }}>{done} / {PRINT_STAGES.length} stages</span>
                 {artCount > 0 && (
                   <span style={{ fontSize: 11, color: "#52A9E0", display: "flex", alignItems: "center", gap: 4 }}>
                     <Paperclip size={11} /> {artCount} file{artCount > 1 ? "s" : ""}
@@ -251,15 +261,16 @@ export default function StaffOrders() {
         })}
       </div>
 
-      {/* ── Order Detail Modal ── */}
+      {/* Order Detail Modal */}
       {selectedOrder && (() => {
         const s = getStatus(selectedOrder);
         return (
           <div onClick={() => setSelected(null)} style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
             zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "16px",
           }}>
-            <div onClick={e => e.stopPropagation()} style={{
+            <div onClick={e => e.stopPropagation()} className="staff-modal-inner" style={{
               background: "#1A1A1A", border: "1px solid #333", borderRadius: 16,
               width: "100%", maxWidth: 580, maxHeight: "90vh", overflowY: "auto",
               padding: 32, position: "relative",
@@ -269,11 +280,10 @@ export default function StaffOrders() {
                 border: "none", color: "#666", cursor: "pointer",
               }}><X size={20} /></button>
 
-              {/* Title */}
-              <h2 style={{ fontFamily: "'Playfair Display', serif", color: "#C9A84C", marginBottom: 4 }}>
+              <h2 style={{ fontFamily: "'Playfair Display', serif", color: "#C9A84C", marginBottom: 4, paddingRight: 32 }}>
                 {selectedOrder.ref} — {selectedOrder.client}
               </h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
                 <span style={{
                   background: statusColors[s] + "22", color: statusColors[s],
                   border: "1px solid " + statusColors[s] + "44",
@@ -287,9 +297,9 @@ export default function StaffOrders() {
                 <div style={{ fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
                   Update Stages
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div className="staff-stages-wrap" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {PRINT_STAGES.map(st => (
-                    <button key={st.key} onClick={() => toggleStage(selectedOrder, st.key)} style={{
+                    <button key={st.key} className="staff-stage-btn" onClick={() => toggleStage(selectedOrder, st.key)} style={{
                       background: selectedOrder[st.key] ? "#C9A84C22" : "#111",
                       border:     "1px solid " + (selectedOrder[st.key] ? "#C9A84C" : "#333"),
                       color:      selectedOrder[st.key] ? "#C9A84C" : "#666",
@@ -314,20 +324,20 @@ export default function StaffOrders() {
                         background: "#111", border: "1px solid #2a2a2a", borderRadius: 8,
                         padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between",
                       }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                           {isImage(file.name)
-                            ? <img src={file.url} alt={file.name} style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4, border: "1px solid #333" }} />
-                            : <div style={{ width: 36, height: 36, background: "#1a1a1a", border: "1px solid #333", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            ? <img src={file.url} alt={file.name} style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 4, border: "1px solid #333", flexShrink: 0 }} />
+                            : <div style={{ width: 36, height: 36, background: "#1a1a1a", border: "1px solid #333", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                 <Paperclip size={16} color="#555" />
                               </div>
                           }
                           <a href={file.url} target="_blank" rel="noopener noreferrer"
-                            style={{ color: "#52A9E0", fontSize: 13, textDecoration: "none", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            style={{ color: "#52A9E0", fontSize: 13, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {file.name}
                           </a>
                         </div>
                         <button onClick={() => handleDeleteArtwork(selectedOrder.id, file)} style={{
-                          background: "transparent", border: "none", color: "#E05252", cursor: "pointer",
+                          background: "transparent", border: "none", color: "#E05252", cursor: "pointer", flexShrink: 0,
                         }}><Trash2 size={14} /></button>
                       </div>
                     ))}
@@ -362,10 +372,10 @@ export default function StaffOrders() {
               ].filter(([, v]) => v).map(([k, v]) => (
                 <div key={k} style={{
                   display: "flex", justifyContent: "space-between",
-                  padding: "10px 0", borderBottom: "1px solid #222", fontSize: 13,
+                  padding: "10px 0", borderBottom: "1px solid #222", fontSize: 13, gap: 12,
                 }}>
-                  <span style={{ color: "#666" }}>{k}</span>
-                  <span style={{ color: "#ddd", fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>{v}</span>
+                  <span style={{ color: "#666", flexShrink: 0 }}>{k}</span>
+                  <span style={{ color: "#ddd", fontWeight: 500, textAlign: "right" }}>{v}</span>
                 </div>
               ))}
             </div>

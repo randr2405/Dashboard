@@ -30,7 +30,7 @@ function StatCard({ icon: Icon, label, value, color }) {
     }}>
       <div style={{
         background: color + "18", borderRadius: 12, padding: 12,
-        display: "flex", alignItems: "center", justifyContent: "center"
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
       }}>
         <Icon size={22} color={color} />
       </div>
@@ -90,6 +90,15 @@ export default function Division() {
 
   return (
     <div>
+      <style>{`
+        @media (max-width: 640px) {
+          .division-stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+          .division-stat-grid > div { padding: 16px !important; }
+          .division-stat-grid .stat-value { font-size: 20px !important; }
+          .division-content-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{
@@ -109,7 +118,7 @@ export default function Division() {
       </div>
 
       {/* Stat Cards */}
-      <div style={{
+      <div className="division-stat-grid" style={{
         display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
         gap: 16, marginBottom: 32
       }}>
@@ -119,7 +128,7 @@ export default function Division() {
         <StatCard icon={Users} label="Staff" value={employees.length} color="#52C97A" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="division-content-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
         {/* Orders */}
         <div style={{
@@ -141,17 +150,17 @@ export default function Division() {
                 <div key={o.id} style={{
                   display: "flex", justifyContent: "space-between",
                   alignItems: "center", padding: "10px 0",
-                  borderBottom: "1px solid #222"
+                  borderBottom: "1px solid #222", gap: 8
                 }}>
-                  <div>
-                    <div style={{ fontWeight: 600, color: "#F0F0F0", fontSize: 14 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "#F0F0F0", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {o.client}
                     </div>
                     <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
                       {o.ref} {o.due ? "· Due: " + o.due : ""}
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <span style={{
                       background: statusColor(o) + "22", color: statusColor(o),
                       border: "1px solid " + statusColor(o) + "44",
@@ -192,14 +201,14 @@ export default function Division() {
             ) : employees.map(e => (
               <div key={e.id} style={{
                 display: "flex", justifyContent: "space-between",
-                alignItems: "center", padding: "10px 0", borderBottom: "1px solid #222"
+                alignItems: "center", padding: "10px 0", borderBottom: "1px solid #222", gap: 8
               }}>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, color: "#F0F0F0", fontSize: 14 }}>{e.name}</div>
                   <div style={{ fontSize: 12, color: "#555" }}>{e.role}</div>
                 </div>
                 {e.salary && (
-                  <div style={{ color: info.color, fontWeight: 700, fontSize: 13 }}>
+                  <div style={{ color: info.color, fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
                     R {parseFloat(e.salary).toFixed(2)}/mo
                   </div>
                 )}
@@ -217,17 +226,17 @@ export default function Division() {
               letterSpacing: 2, marginBottom: 20, fontWeight: 700
             }}>Payroll Summary</h3>
 
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
               <span style={{ color: "#666", fontSize: 13 }}>Payslips Issued</span>
               <span style={{ color: "#F0F0F0", fontWeight: 700 }}>{payroll.length}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
               <span style={{ color: "#666", fontSize: 13 }}>Total Gross Paid</span>
               <span style={{ color: "#F0F0F0", fontWeight: 700 }}>
                 R {payroll.reduce((s, p) => s + (p.gross || 0), 0).toFixed(2)}
               </span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, borderTop: "1px solid #2a2a2a" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, borderTop: "1px solid #2a2a2a", gap: 8 }}>
               <span style={{ color: "#666", fontSize: 13 }}>Total Net Paid</span>
               <span style={{ color: "#52C97A", fontWeight: 700, fontSize: 16 }}>
                 R {totalPayroll.toFixed(2)}
